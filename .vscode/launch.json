@@ -8,8 +8,8 @@
             "type": "node",
             "request": "launch",
             "name": "Launch Program",
-            "program": "${workspaceFolder}/src/app.ts",
-            "args": ["--help"],
+            "program": "${workspaceFolder}/dist/cli.js",
+            "args": ["explore", "tucarro"],
             "preLaunchTask": "tsc: build - tsconfig.json",
             "outFiles": ["${workspaceFolder}/build/**/*.js"]
         }

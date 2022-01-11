@@ -1,38 +1,28 @@
+import {ExplorerConfiguration, getNetworkConfiguration} from '../api/configuration'
+import log4js from 'log4js'
 
-
-export interface ExplorerConfiguration {
-    explorerKey: string
-    includePath?: string
-    configuration?: any
-}
-
-export interface NetworkConfiguration {
-    key: string
-    version: string
-    explorers: Map<string, ExplorerConfiguration>
-}
+const logger = log4js.getLogger("explorer")
 
 export interface Explorer {
     explore(): void
 }
 
-
-async function getNetworkConfiguration(networkKey:string): Promise<NetworkConfiguration>{
-    return null
-}
-
 async function createExplorer(key: string, configuration: ExplorerConfiguration): Promise<Explorer> {
     const includePath = configuration.includePath || `${key}/explorer.ts`
+    logger.debug(`Loading explorer from ${includePath}`)
     const module = await import(includePath)
-    return null
+    return new module.default()
 }
 
+
+
 export async function explore(networkKey: string){
-    console.log("Exploring ", networkKey)
-    const {explorers: explorersConfig} = await getNetworkConfiguration(networkKey);
-    const explorers = Array.from(explorersConfig.keys()).map(k => createExplorer(k, explorersConfig.get(k)));
-    for(let explorer of explorers){
-        let result = await (await explorer).explore();
+    logger.info(`Exploring ${networkKey}`)
+    const {explorers: explorersConfig} = await getNetworkConfiguration("explorers", networkKey);
+    for(let explorerKey of explorersConfig.keys()){
+        logger.debug(`Creating explorer for key ${explorerKey}`)
+        const explorer = await createExplorer(explorerKey, explorersConfig.get(explorerKey))
+        let result = await explorer.explore();
     }
     
 }

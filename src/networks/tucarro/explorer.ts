@@ -1,8 +1,11 @@
-import { Explorer } from "../explore";
+import { Explorer } from "../../api/explore";
+import log4js from "log4js";
+
+const logger = log4js.getLogger("tucarro-explorer")
 
 export default class TuCarroExplorer implements Explorer {
     explore = function () : void {
-        console.log("Done!!!");
+        logger.info("Done!!!");
     };
     
 }

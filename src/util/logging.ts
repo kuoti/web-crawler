@@ -1,17 +1,18 @@
 import log4js from 'log4js'
 
 
-function addLogCategory(configuration, name, level) {
-    const { appenders, categories } = configuration
-    appenders[name] = { type: 'file', filename: `log/${name}.log`, maxLogSize: 10485760, backups: 3, compress: true }
-    categories[name] = { appenders: [name, 'out'], level }
+const logConfig = {
+    appenders: {
+        general: { type: 'file', filename: 'log/general.log', maxLogSize: 10485760, backups: 3, compress: true },
+        out: { type: 'stdout' }
+    },
+    categories: {
+        default: { appenders: ['general', 'out'], level: 'info' }
+    }
 }
 
-
-export function setLogLevel(levelName: string){
-    console.log("Setting log level", levelName)
-}
-
-export function configure(){
-
+export function configure(levelName: string){
+    console.log(`Logger lever is ${levelName}`)
+    logConfig.categories.default.level = levelName
+    log4js.configure(logConfig);
 }

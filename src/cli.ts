@@ -6,7 +6,6 @@ import yargs, { ArgumentsCamelCase } from "yargs";
 import {explore} from './api/explore'
 
 dotenv.config()
-logging.configure()
 
 const logger = log4js.getLogger()
 
@@ -24,17 +23,20 @@ function end(exitCode: number, error?) {
 }
 
 function updateLogLevel(args: any){
-    logging.setLogLevel(args['logLevel'])
+    logging.configure(args['logLevel'])
 }
 
 const argParser = yargs.scriptName('crawler').usage('$0 <task> [args]')
-
-yargs.options('logLevel', {
+argParser.options('logLevel', {
     describe: 'Sets logging level', choices: ['all', 'mark', 'trace', 'debug', 'info', 'error', 'fatal', 'off'], default: 'info'
 })
-yargs.command("explore", "",{netKey: {describe: "Network key to process", string: true}} ,(argv:ArgumentsCamelCase) => {
+
+
+argParser.command("explore", "",{netKey: {describe: "Network key to process", string: true}} ,(argv:ArgumentsCamelCase) => {
     updateLogLevel(argv);
     explore(argv._[1].toString()).then(() => end(0)).catch(e => end(1, e))
 })
-yargs.demandCommand(1, 1)
-yargs.parse()
+
+
+argParser.demandCommand(1, 1)
+argParser.parse()
