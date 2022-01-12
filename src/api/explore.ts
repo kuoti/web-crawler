@@ -3,8 +3,13 @@ import log4js from 'log4js'
 
 const logger = log4js.getLogger("explorer")
 
+export interface ExploringContext {
+    configuration: any
+    addItemLink(url:string, externalId?:string): boolean;
+}
+
 export interface Explorer {
-    explore(): void
+    explore(context:ExploringContext): void
 }
 
 async function createExplorer(key: string, configuration: ExplorerConfiguration): Promise<Explorer> {
@@ -14,15 +19,14 @@ async function createExplorer(key: string, configuration: ExplorerConfiguration)
     return new module.default()
 }
 
-
-
 export async function explore(networkKey: string){
     logger.info(`Exploring ${networkKey}`)
     const {explorers: explorersConfig} = await getNetworkConfiguration("explorers", networkKey);
     for(let explorerKey of explorersConfig.keys()){
         logger.debug(`Creating explorer for key ${explorerKey}`)
+        const configuration = explorersConfig.get(explorerKey)
         const explorer = await createExplorer(explorerKey, explorersConfig.get(explorerKey))
-        let result = await explorer.explore();
+        let result = await explorer.explore(configuration);
     }
     
 }

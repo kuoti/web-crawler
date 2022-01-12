@@ -4,11 +4,14 @@ const sources = {
     }
 }
 
+
+//TODO: get this configuration from another source
 function createDefault(key: string): NetworkConfiguration{
     const explorers = new Map<string, ExplorerConfiguration>()
     explorers.set("default", {
         explorerKey: "default",
-        includePath: `../networks/${key}/explorer.ts`
+        includePath: `../networks/${key}/explorer.ts`,
+        configuration: {}
     })
     return {
         explorers,
