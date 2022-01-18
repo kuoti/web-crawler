@@ -1,18 +1,21 @@
 #!/bin/sh
 #Simple script for running a mongo docker image
 SERVICE="crawler"
+EXTERNAL_PORT=27017
 ROOT_USER="root"
 ROOT_PASSWD="secret"
+CONTAINER_NAME="mongo_$SERVICE"
+VOLUME_NAME="mongo_${SERVICE}_data"
 
+docker rm -fv $CONTAINER_NAME
 
-docker rm -fv "mongo_$SERVICE"
-docker volume create "mongo_${SERVICE}_data"
-
-echo $1
-if [ $1 -eq "wipe" ]; then
+arg="${1}x"
+if [ $arg == "wipex" ]; then
     echo "Wipping data"
-    docker volume rm "mongo_${SERVICE}_data"
+    docker volume rm $VOLUME_NAME
 fi
+
+docker volume create $VOLUME_NAME
 
 
 echo "========================================="
@@ -23,12 +26,12 @@ echo "========================================="
 
 
 docker run -i --rm \
---name "mongo_$SERVICE" \
--v mongo_data:/data/db \
--p 27017:27017 \
+--name $CONTAINER_NAME \
+-v $VOLUME_NAME:/data/db \
+-p $EXTERNAL_PORT:27017 \
 -e MONGO_INITDB_DATABASE=$SERVICE \
--e MONGO_INITDB_ROOT_USERNAME=root \
--e MONGO_INITDB_ROOT_PASSWORD=secret \
+-e MONGO_INITDB_ROOT_USERNAME=$ROOT_USER \
+-e MONGO_INITDB_ROOT_PASSWORD=$ROOT_PASSWD \
 mongo
 
 docker rm -fv $SERVICE

@@ -18,4 +18,4 @@ const NetworkSchema = new mongoose.Schema({
     explorers: { type: Map, of: ExplorerConfig }
 })
 
-module.exports = mongoose.models['network'] || mongoose.model('network', NetworkSchema)
+module.exports = mongoose.models['networks'] || mongoose.model('networks', NetworkSchema)

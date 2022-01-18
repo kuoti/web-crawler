@@ -3,7 +3,7 @@ import dotenv from 'dotenv'
 import * as logging from './util/logging'
 import * as log4js from 'log4js'
 import yargs, { ArgumentsCamelCase } from "yargs";
-import {explore} from './api/explore'
+import { explore } from './api/explore'
 
 dotenv.config()
 
@@ -22,7 +22,7 @@ function end(exitCode: number, error?) {
     })
 }
 
-function updateLogLevel(args: any){
+function updateLogLevel(args: any) {
     logging.configure(args['logLevel'])
 }
 
@@ -32,10 +32,11 @@ argParser.options('logLevel', {
 })
 
 
-argParser.command("explore", "",{netKey: {describe: "Network key to process", string: true}} ,(argv:ArgumentsCamelCase) => {
-    updateLogLevel(argv);
-    explore(argv._[1].toString()).then(() => end(0)).catch(e => end(1, e))
-})
+argParser.command("explore", "Finds new items to process later",
+    { netKey: { describe: "Network key to process", string: true, demandOption: true } }, (argv: ArgumentsCamelCase) => {
+        updateLogLevel(argv);
+        explore(argv.netKey.toString()).then(() => end(0)).catch(e => end(1, e))
+    })
 
 
 argParser.demandCommand(1, 1)
