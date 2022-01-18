@@ -1,8 +1,5 @@
-
-const sources = {
-    "explorers": {
-    }
-}
+import { connectMongo } from "../util/mongo"
+import Network from "./models/network"
 
 
 //TODO: get this configuration from another source
@@ -10,7 +7,6 @@ function createDefault(key: string): NetworkConfiguration{
     const explorers = new Map<string, ExplorerConfiguration>()
     explorers.set("default", {
         explorerKey: "default",
-        includePath: `../networks/${key}/explorer.ts`,
         configuration: {}
     })
     return {
@@ -21,7 +17,7 @@ function createDefault(key: string): NetworkConfiguration{
 
 export interface ExplorerConfiguration {
     explorerKey: string
-    includePath: string
+    includePath?: string
     configuration?: any
 }
 
@@ -30,7 +26,10 @@ export interface NetworkConfiguration {
     explorers: Map<string, ExplorerConfiguration>
 }
 
-export function getNetworkConfiguration(source: string, key:string): NetworkConfiguration {
-    const config =  sources[source][key] || createDefault(key)
+export async function getNetworkConfiguration(source: string, key:string): Promise<NetworkConfiguration> {
+    await connectMongo()
+    const configuration = await Network.findOne({key})
+    console.log(configuration)
+    const config =  configuration || createDefault(key)
     return config
 }

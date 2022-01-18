@@ -1,11 +1,13 @@
 #!/usr/bin/env node}
 import dotenv from 'dotenv'
+dotenv.config()
+
+
 import * as logging from './util/logging'
 import * as log4js from 'log4js'
 import yargs, { ArgumentsCamelCase } from "yargs";
 import { explore } from './api/explore'
 
-dotenv.config()
 
 const logger = log4js.getLogger()
 

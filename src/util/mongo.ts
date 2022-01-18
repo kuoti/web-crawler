@@ -4,7 +4,7 @@ const MONGODB_URI = process.env.MONGODB_URI
 
 if (!MONGODB_URI) {
     throw new Error(
-        'Please define the MONGODB_URI environment variable inside .env.local'
+        'Please define the MONGODB_URI environment variable inside .env file'
     )
 }
 
@@ -28,10 +28,7 @@ export async function connectMongo(): Promise<Mongoose> {
         const opts = {
             useNewUrlParser: true,
             useUnifiedTopology: true,
-            bufferCommands: false,
-            bufferMaxEntries: 0,
-            useFindAndModify: false,
-            useCreateIndex: true,
+            bufferCommands: false
         }
 
         cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {

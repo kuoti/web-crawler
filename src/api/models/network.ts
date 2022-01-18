@@ -2,20 +2,20 @@ import mongoose from "mongoose";
 
 
 const CachedValue = new mongoose.Schema({
-    expiresOn: Date,
+    expiresOn: Number,
     value: {},
     key: String
-},{_id: false})
+}, { _id: false, versionKey: false })
 
 const ExplorerConfig = new mongoose.Schema({
     configuration: {},
-    cachedData: {type: [CachedValue]},
+    cachedData: { type: [CachedValue] },
     lastResult: {}
-})
+}, { _id: false, versionKey: false })
 
 const NetworkSchema = new mongoose.Schema({
     key: { type: String, unique: true },
     explorers: { type: Map, of: ExplorerConfig }
 })
 
-module.exports = mongoose.models['networks'] || mongoose.model('networks', NetworkSchema)
+export default mongoose.models.Network || mongoose.model('Network', NetworkSchema, 'networks')

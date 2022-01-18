@@ -1,12 +1,12 @@
-import { Explorer, ExploringContext } from "../../api/explore";
+import { Explorer, ExploringContext } from "../../../api/explore";
 import log4js from "log4js";
-import { createRequestConfig, getHtml, getJson, postUrlEncoded } from '../../api/http-client'
-import { discover } from "../../api/item-service";
+import { createRequestConfig, getHtml, getJson, postUrlEncoded } from '../../../api/http-client'
+import { discover } from "../../../api/item-service";
 import { Cheerio, CheerioAPI } from "cheerio";
-import { assertNotEmpty, assertNotNull } from "../../util/assert";
+import { assertNotEmpty, assertNotNull } from "../../../util/assert";
 
 
-interface BrandUrl {
+interface Brand {
     id: string
     name: string
     url: string
@@ -51,18 +51,26 @@ async function getBrandUrl(brandId: string): Promise<string | undefined> {
     }
 }
 
-async function getBrandUrls(ctx: ExploringContext){
-    return await ctx.getCached("brands", () => getBrands(ctx))
+async function getBrandUrls(ctx: ExploringContext): Promise<Brand[]>{
+    const cached = await ctx.getCached("brands")
+    if(cached) return cached
+    const brands = await getBrands(ctx)
+    for(const brand of brands){
+        const url = await getBrandUrl(brand.id)
+        brand.url = url
+    }
+    ctx.cacheValue("brands", brands)
+    return brands
 }
 
-async function getBrands(ctx: ExploringContext): Promise<BrandUrl[]> {
+async function getBrands(ctx: ExploringContext): Promise<Brand[]> {
     const { data, statusCode } = await getJson("https://frontend.mercadolibre.com/sites/MCO/homes/motors/filters?nc=5953417692&&category=MCO1744&os=web")
     if (statusCode != 200) throw Error("Unable to explore tucarro main page")
     const { available_filters } = data
     assertNotNull(available_filters, "available filters")
     const brands = available_filters.find(f => f.id == 'BRAND')
     assertNotEmpty(brands, "brands list")
-    const result:BrandUrl[] = []
+    const result:Brand[] = []
     for(const brand of brands.values){
         const url = await getBrandUrl(brand.id)
         result.push({...brand, url})
