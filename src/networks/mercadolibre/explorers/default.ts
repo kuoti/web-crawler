@@ -76,14 +76,15 @@ async function getBrands(ctx: ExploringContext): Promise<Brand[]> {
 
 async function exploreResultsPage($: CheerioParser, ctx: ExploringContext) {
 
-    const elements = $.findAll(".ui-search-result__wrapper")
+    $.saveHtml()
+    const elements = $.findAll(".ui-search-row")
     if(elements.length == 0){
         logger.warn(`No elements found in current page`)
         return
     }
     
     elements.forEach(e => {
-        e.find("a.ui-search-result__content").toArray()
+        e.find("div.ui-row-item-info > a").toArray()
             .map(el => $.$(el)).map(el => el.attr('href'))
             .map(url => ({ url, id: extractExternalId(url) }))
             .forEach(e => ctx.addItemLink(e.url, e.id))

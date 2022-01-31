@@ -10,7 +10,7 @@ const logger = log4js.getLogger("item-service")
  * @returns true if the url was new and was added to processing queue
  */
 export function discover(url: string, externalId?: string): boolean{
-    const isNew =  counter++ < 5
+    const isNew =  true //counter++ < 5
     if(isNew){
         logger.info(`New Link discovered: ${url}`)
     }

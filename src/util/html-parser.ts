@@ -1,4 +1,6 @@
 import { Cheerio, CheerioAPI, Node } from "cheerio";
+import fs from 'fs'
+import path from 'path'
 
 export class ElementNotFoundError extends Error {
 
@@ -21,5 +23,11 @@ export default class CheerioParser {
         const result = this.findAll(selector)
         if(result.length == 0) throw new  ElementNotFoundError(`Using selector ${selector} at ${this.url}`)
         return result
+    }
+
+    async saveHtml(){ 
+        const dataDir = path.join(process.cwd(), 'data', 'pages')
+        fs.mkdirSync(dataDir, {recursive: true})
+        fs.writeFileSync(path.join(dataDir, `content.html`), this.$.html(), {encoding: 'utf-8'})
     }
 }
