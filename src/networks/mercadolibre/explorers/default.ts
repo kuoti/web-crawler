@@ -12,7 +12,7 @@ interface Brand {
     url: string
 }
 
-const logger = log4js.getLogger("tucarro-explorer")
+const logger = log4js.getLogger("MercadolibreDefaultExplorer")
 const idRegex = /.*\/(?<id>MCO-[0-9]+)-.*/i
 
 function extractItems($: CheerioAPI, items: Cheerio<Element>) {
@@ -54,6 +54,7 @@ async function getBrandUrl(brandId: string): Promise<string | undefined> {
 async function getBrandUrls(ctx: ExploringContext): Promise<Brand[]>{
     const cached = await ctx.getCached("brands")
     if(cached) return cached
+    logger.info(`Getting brand keys`)
     const brands = await getBrands(ctx)
     for(const brand of brands){
         const url = await getBrandUrl(brand.id)
@@ -80,9 +81,11 @@ async function getBrands(ctx: ExploringContext): Promise<Brand[]> {
 
 export default class MercadolibreExplorer implements Explorer {
     explore = async function (ctx: ExploringContext) {
-        const brands = await getBrandUrls(ctx);
+        //const brands = await getBrandUrls(ctx);
         //const slug = await getBrandUrl("56870")
-        console.log(brands)
+        //console.log(brands)
+        ctx.cacheValue("test", "Holi")
+        return {done: true}
         //await exploreResultsPage(`https://carros.mercadolibre.com.co/#CATEGORY_ID=MCO1744`, ctx)
     };
 }
