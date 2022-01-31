@@ -4,6 +4,7 @@ import { createRequestConfig, getHtml, getJson, postUrlEncoded } from '../../../
 import { discover } from "../../../api/item-service";
 import { Cheerio, CheerioAPI } from "cheerio";
 import { assertNotEmpty, assertNotNull } from "../../../util/assert";
+import CheerioParser from "../../../util/html-parser";
 
 
 interface Brand {
@@ -24,16 +25,6 @@ function extractExternalId(url: string): string | undefined {
     return matcher?.groups?.id
 }
 
-async function exploreResultsPage(url: string, ctx: ExploringContext) {
-    const { $, statusCode } = await getHtml(url)
-    if (statusCode != 200) throw Error("Unable to explore tucarro network")
-    $(".ui-search-result__wrapper").each((i, e) => {
-        const links = $(e).find("a.ui-search-result__content").toArray()
-        links.map(el => $(el)).map(el => el.attr('href'))
-            .map(url => ({ url, id: extractExternalId(url) }))
-            .forEach(e => ctx.addItemLink(e.url, e.id))
-    })
-}
 
 async function getBrandUrl(brandId: string): Promise<string | undefined> {
     try {
@@ -52,8 +43,11 @@ async function getBrandUrl(brandId: string): Promise<string | undefined> {
 }
 
 async function getBrandUrls(ctx: ExploringContext): Promise<Brand[]>{
-    const cached = await ctx.getCached("brands")
-    if(cached) return cached
+    const cached = await ctx.getCached("brands", 24 * 7)
+    if(cached){
+        logger.info(`Getting brand urls from cache`)
+        return cached
+    }
     logger.info(`Getting brand keys`)
     const brands = await getBrands(ctx)
     for(const brand of brands){
@@ -65,6 +59,7 @@ async function getBrandUrls(ctx: ExploringContext): Promise<Brand[]>{
 }
 
 async function getBrands(ctx: ExploringContext): Promise<Brand[]> {
+    //https://carros.tucarro.com.co/chevrolet/_Desde_145_PublishedToday_YES_NoIndex_False
     const { data, statusCode } = await getJson("https://frontend.mercadolibre.com/sites/MCO/homes/motors/filters?nc=5953417692&&category=MCO1744&os=web")
     if (statusCode != 200) throw Error("Unable to explore tucarro main page")
     const { available_filters } = data
@@ -79,12 +74,64 @@ async function getBrands(ctx: ExploringContext): Promise<Brand[]> {
     return result
 }
 
+async function exploreResultsPage($: CheerioParser, ctx: ExploringContext) {
+
+    const elements = $.findAll(".ui-search-result__wrapper")
+    if(elements.length == 0){
+        logger.warn(`No elements found in current page`)
+        return
+    }
+    
+    elements.forEach(e => {
+        e.find("a.ui-search-result__content").toArray()
+            .map(el => $.$(el)).map(el => el.attr('href'))
+            .map(url => ({ url, id: extractExternalId(url) }))
+            .forEach(e => ctx.addItemLink(e.url, e.id))
+    })
+}
+
+async function exploreResults(url: string, ctx: ExploringContext){
+    logger.debug(`Getting page at url ${url}`)
+    const {$, statusCode}  =  await getHtml(url)
+    if(statusCode != 200){
+        logger.error(`Unable to get page at ${url}, result code: ${statusCode}`)
+        return
+    }
+
+    await exploreResultsPage($, ctx)
+
+    const nextLink = $.findFirst("li.andes-pagination__button--next > a")
+    if(!nextLink){
+        logger.debug("No next page link found")
+        return
+    }
+    const nextLinkUrl = nextLink.attr("href")
+    if(continueScrapping(ctx)){
+        await exploreResults(nextLinkUrl, ctx)
+    }else{
+        logger.info(`Not scrapping next page: ${nextLinkUrl}`)
+    }
+}
+
+function continueScrapping (ctx:  ExploringContext):  boolean{
+    return false
+}
+
+
+function toUrl(baseUrl: string, urlArgs: any = {}): string{
+    const args = Object.keys(urlArgs).sort().map(k => `${k}_${urlArgs[k]}`)
+    return `${baseUrl}${args.length > 0? "/_" + args.join("_"): ""}`
+}
+
 export default class MercadolibreExplorer implements Explorer {
     explore = async function (ctx: ExploringContext) {
         //const brands = await getBrandUrls(ctx);
+        await exploreResults("https://carros.tucarro.com.co/chevrolet", ctx)
+
+
         //const slug = await getBrandUrl("56870")
         //console.log(brands)
-        ctx.cacheValue("test", "Holi")
+        //ctx.cacheValue("test", "Holi")
         return {done: true}
         //await exploreResultsPage(`https://carros.mercadolibre.com.co/#CATEGORY_ID=MCO1744`, ctx)
     };

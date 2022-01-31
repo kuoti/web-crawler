@@ -1,4 +1,4 @@
-import { ExplorerConfiguration, getNetworkConfiguration, CacheEntry, updateNetworkExplorerState, updateNetworkExplorerStateError, getExplorers } from '../api/configuration'
+import { ExplorerConfiguration, CacheEntry, updateNetworkExplorerState, updateNetworkExplorerStateError, getExplorers, getNetworkConfiguration } from '../api/configuration'
 import log4js from 'log4js'
 import { discover } from './item-service'
 import { string } from 'yargs'
@@ -6,13 +6,13 @@ import { string } from 'yargs'
 const logger = log4js.getLogger("explorer")
 
 export interface ExploringContext {
-    configuration: any
+    configuration: ExplorerConfiguration
     addItemLink(url: string, externalId?: string): boolean;
     putValue(key: string, value: any);
     getValue(key: string): any | undefined;
-    cacheValue(key: string, value: any, expires?: number);
-    isCached(key: string): boolean;
-    getCached(key: string): any | undefined;
+    cacheValue(key: string, value: any);
+    isCached(key: string, ttlhours?: number): boolean;
+    getCached(key: string, ttlhours?: number): any | undefined;
     invalidateCached(key: string): void;
 }
 
@@ -20,16 +20,16 @@ export interface ExploringContext {
 class DefaultExploringContext implements ExploringContext {
 
     values = new Map<string, any>();
-    cachedValues = new Map<string, CacheEntry>();
 
-
-    constructor(public configuration: any) {
+    constructor(public configuration: ExplorerConfiguration) {
     }
-    getCached(key: string) {
-        const item: CacheEntry = this.cachedValues.get(key)
+
+    getCached(key: string, ttlHours: number = 24) {
+        const cache = this.configuration.cache
+        const item: CacheEntry = cache.get(key)
         if (item == null) return undefined
-        if (item.expiresOn < Date.now()) {
-            this.cachedValues.delete(key)
+        if (this.isExpired(item, ttlHours)) {
+            cache.delete(key)
             return undefined
         }
         item.lastHit = Date.now()
@@ -37,26 +37,33 @@ class DefaultExploringContext implements ExploringContext {
     }
 
     getCache(): Map<string, CacheEntry> {
-        return this.cachedValues
+        return this.configuration.cache
     }
 
-    isCached(key: string): boolean {
-        const item: CacheEntry = this.cachedValues.get(key)
+    private isExpired(item: CacheEntry, ttlHours: number): boolean {
+        const expiresOn = item.cachedAt + (ttlHours * 3600_000)
+        return expiresOn <= Date.now()
+    }
+
+    isCached(key: string, ttlHours: number = 24): boolean {
+        const cache = this.configuration.cache
+        const item: CacheEntry = cache.get(key)
         if (item == null) return false
-        if (item.expiresOn < Date.now()) {
-            this.cachedValues.delete(key)
+        if (this.isExpired(item, ttlHours)) {
+            cache.delete(key)
             return false
         }
         return true
     }
 
     invalidateCached(key: string): void {
-        this.cachedValues.delete(key)
+        this.configuration.cache.delete(key)
     }
 
-    cacheValue(key: string, value: any, expires: number = 360_000) {
-        const entry: CacheEntry = { value, lastHit: Date.now(), expiresOn: (expires + Date.now()) }
-        this.cachedValues.set(key, entry)
+    cacheValue(key: string, value: any, expiresinHours: number = 24) {
+        const expires = 1000 * 60 * 60 * expiresinHours
+        const entry: CacheEntry = { value, lastHit: Date.now(), cachedAt: Date.now() }
+        this.configuration.cache.set(key, entry)
     }
 
     addItemLink(url: string, externalId?: string): boolean {
@@ -77,7 +84,7 @@ export interface Explorer {
 
 async function createExplorer(networkKey: string, configuration: ExplorerConfiguration): Promise<Explorer> {
     const key = configuration.explorerKey
-    const includePath = configuration.includePath || `../networks/${networkKey}/explorers/${key}.ts`
+    const includePath = `../networks/${networkKey}/explorers/${key}.ts`
     logger.debug(`Loading explorer from ${includePath}`)
     const module = await import(includePath)
     return new module.default()
@@ -85,9 +92,8 @@ async function createExplorer(networkKey: string, configuration: ExplorerConfigu
 
 export async function explore(networkKey: string) {
     logger.info(`Exploring ${networkKey}`)
-    const networks = await getNetworkConfiguration("explorers", networkKey);
+    //const networks = await getNetworkConfiguration(networkKey);
     const explorersConfig = await getExplorers(networkKey)
-
 
     for (let configuration of explorersConfig) {
         const explorerKey = configuration.explorerKey

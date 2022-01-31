@@ -1,13 +1,14 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import * as cheerio from 'cheerio'
 import log4js from 'log4js'
+import CheerioParser from "../util/html-parser";
 
 const logger = log4js.getLogger("http")
 
 export interface HtmlGetResult {
     statusCode: number
     response: AxiosResponse
-    $?: cheerio.CheerioAPI
+    $?: CheerioParser
 }
 
 export interface HtmlJsonResponse {
@@ -41,7 +42,7 @@ export async function getHtml(url: string, profile?: string): Promise<HtmlGetRes
     logger.debug(`Loading and parsing html response`)
     const data = response.data
     const $ = cheerio.load(data)
-    return {statusCode, response, $}
+    return {statusCode, response, $: new CheerioParser($, url)}
 }
 
 export async function getJson(url: string, profile?: string): Promise<HtmlJsonResponse>{

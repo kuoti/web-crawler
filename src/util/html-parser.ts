@@ -1,0 +1,25 @@
+import { Cheerio, CheerioAPI, Node } from "cheerio";
+
+export class ElementNotFoundError extends Error {
+
+}
+
+export default class CheerioParser {
+    constructor(public readonly $: CheerioAPI, public readonly url: string) {
+    }
+
+    findFirst(selector: string): Cheerio<Node> | undefined {
+        const resultArray = this.$(selector).toArray()
+        return resultArray.length == 0 ? undefined : this.$(resultArray[0])
+    }
+
+    findAll(selector: string): Array<Cheerio<Node>> {
+        return this.$(selector).toArray().map(n => this.$(n))
+    }
+
+    findNotEmpty(selector: string){
+        const result = this.findAll(selector)
+        if(result.length == 0) throw new  ElementNotFoundError(`Using selector ${selector} at ${this.url}`)
+        return result
+    }
+}

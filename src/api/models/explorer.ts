@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const CachedValue = new mongoose.Schema({
-    expiresOn: Number,
+    cachedAt: Number,
     value: {},
     lastHit: Number
 }, { _id: false, versionKey: false })
