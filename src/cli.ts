@@ -35,9 +35,9 @@ argParser.options('logLevel', {
 
 
 argParser.command("explore", "Finds new items to process later",
-    { netKey: { describe: "Network key to process", string: true, demandOption: true } }, (argv: ArgumentsCamelCase) => {
+    { explorer: { describe: "Network key to process", string: true, demandOption: true } }, (argv: ArgumentsCamelCase) => {
         updateLogLevel(argv);
-        explore(argv.netKey.toString()).then(() => end(0)).catch(e => end(1, e))
+        explore(argv.explorer.toString()).then(() => end(0)).catch(e => end(1, e))
     })
 
 

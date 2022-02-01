@@ -32,9 +32,9 @@ export async function getNetworkConfiguration(key:string): Promise<NetworkConfig
     return await Network.findOne({key})
 }
 
-export async function getExplorers(networkKey: String): Promise<ExplorerConfiguration[]>{
+export async function getExplorer(networkKey: String, explorerKey: string): Promise<ExplorerConfiguration>{
     await connectMongo()
-    return await Explorer.find({networkKey})
+    return await Explorer.findOne({networkKey, explorerKey})
 }
 
 export async function updateNetworkExplorerState(networkKey:string, explorerKey:string, ctx: ExploringContext){

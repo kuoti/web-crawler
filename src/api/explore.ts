@@ -1,4 +1,4 @@
-import { ExplorerConfiguration, CacheEntry, updateNetworkExplorerState, updateNetworkExplorerStateError, getExplorers, getNetworkConfiguration } from '../api/configuration'
+import { ExplorerConfiguration, CacheEntry, updateNetworkExplorerState, updateNetworkExplorerStateError, getExplorer } from '../api/configuration'
 import log4js from 'log4js'
 import { discover } from './item-service'
 import { clone } from '../util/common'
@@ -14,7 +14,7 @@ export interface ExploringContext {
     isCached(key: string, ttlhours?: number): boolean;
     getCached(key: string, ttlhours?: number): any | undefined;
     invalidateCached(key: string): void;
-    getStats(): Map<string,number>;
+    getStats(): Map<string, number>;
     getCache(): any;
     getConfiguration(key: string, defValue: any): any
 }
@@ -27,29 +27,29 @@ export class StatsKeys {
 
 export class NumericStats {
     private stats = {}
-    increase(counter: string){
+    increase(counter: string) {
         let value = this.stats[counter] || 0
         value++
         this.stats[counter] = value
     }
-    decrease(counter: string){
+    decrease(counter: string) {
         let value = this.stats[counter] || 0
         value--
         this.stats[counter] = value
     }
-    reset(counter: string){
+    reset(counter: string) {
         this.stats[counter] = 0
     }
 
-    getValue(counter: string) : number{ 
+    getValue(counter: string): number {
         return this.stats[counter] || 0
     }
 
-    getAll(): Map<string,number>{
+    getAll(): Map<string, number> {
         return Object.keys(this.stats).reduce((p, c) => {
             p.set(c, this.stats[c])
             return p
-        } , new Map<string,number>())
+        }, new Map<string, number>())
     }
 }
 
@@ -57,13 +57,13 @@ class DefaultExploringContext implements ExploringContext {
 
     values = new Map<string, any>();
     stats = new NumericStats()
-    
+
     constructor(public configuration: ExplorerConfiguration) {
     }
 
     getConfiguration(key: string, defValue: any) {
         const value = this.configuration.configuration[key]
-        if(value == null) return defValue
+        if (value == null) return defValue
         return value
     }
 
@@ -112,10 +112,10 @@ class DefaultExploringContext implements ExploringContext {
     async addItemLink(url: string, externalId?: string): Promise<boolean> {
         const isNew = await discover(url, externalId);
         this.stats.increase(StatsKeys.DISCOVERED_ITEMS)
-        if(isNew){
+        if (isNew) {
             this.stats.increase(StatsKeys.NEW_ITEMS)
             this.stats.reset(StatsKeys.REPEAT_STRIKE)
-        } else{
+        } else {
             this.stats.increase(StatsKeys.REPEAT_STRIKE)
         }
         return isNew
@@ -129,7 +129,7 @@ class DefaultExploringContext implements ExploringContext {
         this.values.get(key)
     }
 
-    getStats():Map<string,number> {
+    getStats(): Map<string, number> {
         return this.stats.getAll()
     }
 }
@@ -146,26 +146,29 @@ async function createExplorer(networkKey: string, configuration: ExplorerConfigu
     return new module.default()
 }
 
-export async function explore(networkKey: string) {
-    logger.info(`Exploring ${networkKey}`)
+export async function explore(explorerPath: string) {
+    const [networkKey, explorerKey] = explorerPath.split(":")
     //const networks = await getNetworkConfiguration(networkKey);
-    const explorersConfig = await getExplorers(networkKey)
-
-    for (let configuration of explorersConfig) {
-        const explorerKey = configuration.explorerKey
-        logger.debug(`Creating explorer ${configuration.explorerKey} for network ${networkKey}`)
-        logger.info(`Explorer configuration: ${JSON.stringify(configuration.configuration)}`)
-        const context = new DefaultExploringContext(configuration);
-        const explorer = await createExplorer(networkKey, configuration)
-        try {
-            logger.info(`Running explorer for network ${networkKey}`)
-            let result = await explorer.explore(context);
-            logger.info(`Network explorer execution completed ${networkKey}`)
-            await updateNetworkExplorerState(networkKey, explorerKey, context)
-        } catch (e) {
-            logger.error(`Error running network explorer ${networkKey}`, e)
-            await updateNetworkExplorerStateError(networkKey, explorerKey, e, context)
-        }
+    const configuration = await getExplorer(networkKey, explorerKey)
+    if(!configuration){
+        throw new Error(`No explorer found: ${explorerPath}`)
+    }
+    
+    logger.info(`Exploring ${explorerPath}`)
+    logger.debug(`Creating explorer ${configuration.explorerKey} for network ${explorerPath}`)
+    logger.info(`Explorer configuration: ${JSON.stringify(configuration.configuration)}`)
+    const context = new DefaultExploringContext(configuration);
+    const explorer = await createExplorer(networkKey, configuration)
+    try {
+        logger.info(`Running explorer for network ${explorerPath}`)
+        let result = await explorer.explore(context);
+        logger.info(`Network explorer execution completed ${explorerPath}`)
+        const stats = [...context.getStats().entries()].reduce((p, c) => ({ ...p, [c[0]]: c[1] }), {})
+        logger.info(`Execution numbers: ${JSON.stringify(stats)}`)
+        await updateNetworkExplorerState(explorerPath, explorerKey, context)
+    } catch (e) {
+        logger.error(`Error running network explorer ${explorerPath}`, e)
+        await updateNetworkExplorerStateError(explorerPath, explorerKey, e, context)
     }
 
 }
