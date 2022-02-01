@@ -1,28 +1,52 @@
 import { ExplorerConfiguration, CacheEntry, updateNetworkExplorerState, updateNetworkExplorerStateError, getExplorers, getNetworkConfiguration } from '../api/configuration'
 import log4js from 'log4js'
 import { discover } from './item-service'
-import { string } from 'yargs'
+import { clone } from '../util/common'
 
 const logger = log4js.getLogger("explorer")
 
 export interface ExploringContext {
     configuration: ExplorerConfiguration
-    addItemLink(url: string, externalId?: string): boolean;
+    addItemLink(url: string, externalId?: string): Promise<boolean>;
     putValue(key: string, value: any);
     getValue(key: string): any | undefined;
     cacheValue(key: string, value: any);
     isCached(key: string, ttlhours?: number): boolean;
     getCached(key: string, ttlhours?: number): any | undefined;
     invalidateCached(key: string): void;
+    getStats(): any;
+    getCache(): any;
 }
 
+class NumericStats {
+    private stats = {}
+    increase(counter: string){
+        let value = this.stats[counter] || 0
+        value++
+        this.stats[counter] = value
+    }
+    decrease(counter: string){
+        let value = this.stats[counter] || 0
+        value--
+        this.stats[counter] = value
+    }
+    reset(counter: string){
+        this.stats[counter] = 0
+    }
+
+    getStats(){
+        return clone(this.stats)
+    }
+}
 
 class DefaultExploringContext implements ExploringContext {
 
     values = new Map<string, any>();
-
+    stats = new NumericStats()
+    
     constructor(public configuration: ExplorerConfiguration) {
     }
+    
 
     getCached(key: string, ttlHours: number = 24) {
         const cache = this.configuration.cache
@@ -66,15 +90,30 @@ class DefaultExploringContext implements ExploringContext {
         this.configuration.cache.set(key, entry)
     }
 
-    addItemLink(url: string, externalId?: string): boolean {
-        return discover(url, externalId);
+    async addItemLink(url: string, externalId?: string): Promise<boolean> {
+        const isNew = await discover(url, externalId);
+        this.stats.increase('discoveredItems')
+        if(isNew){
+            this.stats.increase('newItems')
+            this.stats.reset('repeatedCount')
+        } else{
+            this.stats.increase('repeatedCount')
+        }
+        return isNew
     }
 
     putValue(key: string, value: any) {
         this.values.set(key, value);
     }
+
     getValue(key: string): any | undefined {
         this.values.get(key)
+    }
+
+    getStats() {
+        const stats = this.stats.getStats()
+        delete stats['repeatedCount']
+        return stats
     }
 }
 
@@ -104,10 +143,10 @@ export async function explore(networkKey: string) {
             logger.info(`Running explorer for network ${networkKey}`)
             let result = await explorer.explore(context);
             logger.info(`Network explorer execution completed ${networkKey}`)
-            await updateNetworkExplorerState(networkKey, explorerKey, result, context.getCache())
+            await updateNetworkExplorerState(networkKey, explorerKey, context)
         } catch (e) {
             logger.error(`Error running network explorer ${networkKey}`, e)
-            await updateNetworkExplorerStateError(networkKey, explorerKey, e, context.getCache())
+            await updateNetworkExplorerStateError(networkKey, explorerKey, e, context)
         }
     }
 

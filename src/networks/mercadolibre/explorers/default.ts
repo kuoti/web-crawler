@@ -15,8 +15,17 @@ interface Brand {
 
 const logger = log4js.getLogger("MercadolibreDefaultExplorer")
 const idRegex = /.*\/(?<id>MCO-[0-9]+)-.*/i
+const trackingIdPattern = /&?tracking_id=([0-9a-f]|-)+/
+const searchLayoutPattern = /&?search_layout=stack/
+const positionPattern = /#?&?position=[0-9]+/
+const typePattern = /#?&?type=item/
 
 function extractItems($: CheerioAPI, items: Cheerio<Element>) {
+}
+
+function normalizeUrl(url:string): string{
+    //https://articulo.tucarro.com.co/MCO-850966913-chevrolet-n300-_JM#position=20&search_layout=stack&type=item&tracking_id=eff40492-b059-4d3d-9cbf-a11bcfe649a6
+    return url.replace(trackingIdPattern, "").replace(searchLayoutPattern, "").replace(typePattern, "").replace(positionPattern, "")
 }
 
 function extractExternalId(url: string): string | undefined {
@@ -82,13 +91,20 @@ async function exploreResultsPage($: CheerioParser, ctx: ExploringContext) {
         logger.warn(`No elements found in current page`)
         return
     }
+
+    for(const e of elements){
+        const links = e.find("div.ui-row-item-info > a").toArray()
+        .map(el => $.$(el)).map(el => el.attr('href')).map(l => normalizeUrl(l))
+        for(let link of links){
+            let externalId = extractExternalId(link)
+            const url = externalId? null : link //If external id, don't need a url
+            if(!externalId){
+                logger.warn(`Unnable to extract external id from url ${link}`)
+            }
+            await ctx.addItemLink(url, externalId)
+        }
+    }
     
-    elements.forEach(e => {
-        e.find("div.ui-row-item-info > a").toArray()
-            .map(el => $.$(el)).map(el => el.attr('href'))
-            .map(url => ({ url, id: extractExternalId(url) }))
-            .forEach(e => ctx.addItemLink(e.url, e.id))
-    })
 }
 
 async function exploreResults(url: string, ctx: ExploringContext){

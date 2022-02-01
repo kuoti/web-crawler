@@ -3,7 +3,7 @@ import mongoose from 'mongoose'
 const ExplorerResultSchema = new mongoose.Schema({
     networkKey: { type: String, required: true},
     explorerKey: { type: String, required: true},
-    status: String,
+    state: String,
     date: {type: Date, default: () => new Date()},
     stats: {}
 }, {versionKey: false})
