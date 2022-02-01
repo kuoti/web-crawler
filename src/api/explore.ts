@@ -14,11 +14,18 @@ export interface ExploringContext {
     isCached(key: string, ttlhours?: number): boolean;
     getCached(key: string, ttlhours?: number): any | undefined;
     invalidateCached(key: string): void;
-    getStats(): any;
+    getStats(): Map<string,number>;
     getCache(): any;
+    getConfiguration(key: string, defValue: any): any
 }
 
-class NumericStats {
+export class StatsKeys {
+    static readonly DISCOVERED_ITEMS = "discoveredItems"
+    static readonly NEW_ITEMS = "newItems"
+    static readonly REPEAT_STRIKE = "repeatStrike"
+}
+
+export class NumericStats {
     private stats = {}
     increase(counter: string){
         let value = this.stats[counter] || 0
@@ -34,8 +41,15 @@ class NumericStats {
         this.stats[counter] = 0
     }
 
-    getStats(){
-        return clone(this.stats)
+    getValue(counter: string) : number{ 
+        return this.stats[counter] || 0
+    }
+
+    getAll(): Map<string,number>{
+        return Object.keys(this.stats).reduce((p, c) => {
+            p.set(c, this.stats[c])
+            return p
+        } , new Map<string,number>())
     }
 }
 
@@ -46,7 +60,12 @@ class DefaultExploringContext implements ExploringContext {
     
     constructor(public configuration: ExplorerConfiguration) {
     }
-    
+
+    getConfiguration(key: string, defValue: any) {
+        const value = this.configuration.configuration[key]
+        if(value == null) return defValue
+        return value
+    }
 
     getCached(key: string, ttlHours: number = 24) {
         const cache = this.configuration.cache
@@ -92,12 +111,12 @@ class DefaultExploringContext implements ExploringContext {
 
     async addItemLink(url: string, externalId?: string): Promise<boolean> {
         const isNew = await discover(url, externalId);
-        this.stats.increase('discoveredItems')
+        this.stats.increase(StatsKeys.DISCOVERED_ITEMS)
         if(isNew){
-            this.stats.increase('newItems')
-            this.stats.reset('repeatedCount')
+            this.stats.increase(StatsKeys.NEW_ITEMS)
+            this.stats.reset(StatsKeys.REPEAT_STRIKE)
         } else{
-            this.stats.increase('repeatedCount')
+            this.stats.increase(StatsKeys.REPEAT_STRIKE)
         }
         return isNew
     }
@@ -110,10 +129,8 @@ class DefaultExploringContext implements ExploringContext {
         this.values.get(key)
     }
 
-    getStats() {
-        const stats = this.stats.getStats()
-        delete stats['repeatedCount']
-        return stats
+    getStats():Map<string,number> {
+        return this.stats.getAll()
     }
 }
 
@@ -137,6 +154,7 @@ export async function explore(networkKey: string) {
     for (let configuration of explorersConfig) {
         const explorerKey = configuration.explorerKey
         logger.debug(`Creating explorer ${configuration.explorerKey} for network ${networkKey}`)
+        logger.info(`Explorer configuration: ${JSON.stringify(configuration.configuration)}`)
         const context = new DefaultExploringContext(configuration);
         const explorer = await createExplorer(networkKey, configuration)
         try {

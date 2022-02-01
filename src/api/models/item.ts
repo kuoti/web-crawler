@@ -10,6 +10,7 @@ const ItemSchema = new mongoose.Schema({
     uri: { type: String },
     externalId: { type: String },
     discoveredAt: { type: Date, default: () => new Date() },
+    lastDiscovered: {type: Date, default: () => new Date() },
     data: {},
     lastCheckedAt: Date,
     state: { type: String, enum: ['created', 'fecthed', 'removed', 'error'], default: 'created' },

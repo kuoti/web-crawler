@@ -23,12 +23,11 @@ function objectIdFromUrl(url: string): mongoose.Types.ObjectId {
  */
 export async function discover(url: string, externalId?: string): Promise<boolean> {
     const _id = objectIdFromUrl(externalId || url)
-    const existent = await ItemModel.findOne({ _id }, { _id: 1 })
-    if (!existent) {
+    const updated = await ItemModel.updateOne({ _id }, { $set: { lastDiscovered: new Date() } })
+    if (!updated.matchedCount) {
         logger.info(`New item discovered: ${externalId || url}`)
-        await ItemModel.create({_id, url, externalId})
+        await ItemModel.create({ _id, url, externalId })
         return true
-    } else {
-        return false
     }
+    return false
 }

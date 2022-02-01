@@ -1,4 +1,4 @@
-import { Explorer, ExploringContext } from "../../../api/explore";
+import { Explorer, ExploringContext, StatsKeys } from "../../../api/explore";
 import log4js from "log4js";
 import { createRequestConfig, getHtml, getJson, postUrlEncoded } from '../../../api/http-client'
 import { discover } from "../../../api/item-service";
@@ -19,9 +19,8 @@ const trackingIdPattern = /&?tracking_id=([0-9a-f]|-)+/
 const searchLayoutPattern = /&?search_layout=stack/
 const positionPattern = /#?&?position=[0-9]+/
 const typePattern = /#?&?type=item/
+const validUrlPattern = /^https?:\/\/carros.tucarro.com.co\/?.*/
 
-function extractItems($: CheerioAPI, items: Cheerio<Element>) {
-}
 
 function normalizeUrl(url:string): string{
     //https://articulo.tucarro.com.co/MCO-850966913-chevrolet-n300-_JM#position=20&search_layout=stack&type=item&tracking_id=eff40492-b059-4d3d-9cbf-a11bcfe649a6
@@ -123,6 +122,11 @@ async function exploreResults(url: string, ctx: ExploringContext){
         return
     }
     const nextLinkUrl = nextLink.attr("href")
+    if(!nextLinkUrl || !validUrlPattern.exec(nextLinkUrl)){
+        logger.info(`Invalid url found [breaking] ${nextLinkUrl}`)
+        return
+    }
+
     if(continueScrapping(ctx)){
         await exploreResults(nextLinkUrl, ctx)
     }else{
@@ -131,7 +135,14 @@ async function exploreResults(url: string, ctx: ExploringContext){
 }
 
 function continueScrapping (ctx:  ExploringContext):  boolean{
-    return false
+    const stats = ctx.getStats()
+    const strike = stats.get(StatsKeys.REPEAT_STRIKE) || 0
+    const maxRepeatCountStrike = ctx.getConfiguration("maxRepeatCountStrike", 100)
+    if(strike > maxRepeatCountStrike){
+        logger.info(`Repeated count strike bigger than ${maxRepeatCountStrike}`)
+        return false
+    }
+    return true
 }
 
 
@@ -143,8 +154,11 @@ function toUrl(baseUrl: string, urlArgs: any = {}): string{
 export default class MercadolibreExplorer implements Explorer {
     explore = async function (ctx: ExploringContext) {
         //const brands = await getBrandUrls(ctx);
-        await exploreResults("https://carros.tucarro.com.co/chevrolet", ctx)
 
+        const today = "https://carros.tucarro.com.co/_PublishedToday_YES_NoIndex_False"
+
+        //await exploreResults("https://carros.tucarro.com.co/chevrolet", ctx)
+        await exploreResults(today, ctx)
 
         //const slug = await getBrandUrl("56870")
         //console.log(brands)
