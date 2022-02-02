@@ -9,7 +9,7 @@ import log4js from "log4js"
 import { connectMongo } from "../util/mongo"
 import { createTempDir, getStorageDirectory, moveToStorage, zipDir } from './storage'
 import path from 'path'
-import { emptyAndDelete, moveFile } from "../util/filesystem"
+import { emptyAndDelete } from "../util/filesystem"
 
 const logger = log4js.getLogger("extract")
 
@@ -92,6 +92,7 @@ function buildUrl(item: Item, extractor: any, newtwork: Network): string {
 
 async function processContent(item: Item, extractor: ItemDataExtractor, parser: CheerioParser, network: Network) {
     const { itemLinks = [], data, assets = [], skipSaveSnapshot = false } = await extractor.extract(parser, network)
+    const currentDate = new Date()
     for (const itemLink of itemLinks) {
         await discover(itemLink)
     }
@@ -103,11 +104,12 @@ async function processContent(item: Item, extractor: ItemDataExtractor, parser: 
         return
     }
     logger.debug(`${assets.length} assets detected in result`)
+    const history = item.history || []
     if (item.data) {
-        const history = item.history || []
+        history.push({ date: currentDate, changes })
     }
     logger.info(`Updating item ${item.externalId || item._id}`)
-    await ItemModel.updateOne({ _id: item._id }, { $set: { data, lastUpdated: new Date() } })
+    await ItemModel.updateOne({ _id: item._id }, { $set: { data, lastUpdated: new Date(), history } })
     const dir = createTempDir()
     await parser.saveHtml(dir, "index.html")
 
