@@ -4,7 +4,9 @@ import log4js from 'log4js'
 import CheerioParser from "../util/html-parser";
 import { inspect } from 'util'
 import fs from 'fs'
+import path from 'path'
 import { md5 } from "../util/common";
+import { reject } from "lodash";
 
 const logger = log4js.getLogger("http")
 
@@ -86,4 +88,23 @@ export async function postJson(url: string, data: any, requestConfig?: AxiosRequ
     const rqConfig = requestConfig || createRequestConfig()
     const response = await axios.post(url, data, rqConfig)
     return response
+}
+
+export async function downloadFile(url: string, directory: string, fileName?: string): Promise<void> {
+    logger.info(`Downloading file: ${url}`)
+    const writer = fs.createWriteStream(path.join(directory, fileName))
+    const response = await axios.get(url, { responseType: 'stream' })
+    return new Promise((resolve, reject) => {
+        response.data.pipe(writer)
+        let error = undefined
+        writer.on('error', e => {
+            e = error
+            writer.close()
+            reject(e)
+        })
+        writer.on('close', () => {
+            if (error) return
+            resolve()
+        })
+    })
 }

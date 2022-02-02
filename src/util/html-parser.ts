@@ -1,5 +1,5 @@
 import { Cheerio, CheerioAPI, Node } from "cheerio";
-import fs from 'fs'
+import { writeFile } from '../util/filesystem'
 import path from 'path'
 
 export class ElementNotFoundError extends Error {
@@ -25,9 +25,7 @@ export default class CheerioParser {
         return result
     }
 
-    async saveHtml(fileName: string) {
-        const dataDir = path.join(process.cwd(), 'data', 'pages')
-        fs.mkdirSync(dataDir, { recursive: true })
-        fs.writeFileSync(path.join(dataDir, fileName), this.$.html(), { encoding: 'utf-8' })
+    async saveHtml(directory: string, fileName: string): Promise<void> {
+        await writeFile(path.join(directory, fileName), this.$.html(), { encoding: 'utf-8' })
     }
 }

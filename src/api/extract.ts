@@ -7,6 +7,7 @@ import { discover } from "./item-service"
 import { clone, createObject } from "../util/common"
 import log4js from "log4js"
 import { connectMongo } from "../util/mongo"
+import { createTempDir, zipDir } from './storage'
 
 const logger = log4js.getLogger("extract")
 
@@ -105,5 +106,7 @@ async function processContent(item: Item, extractor: ItemDataExtractor, parser: 
     }
     logger.info(`Updating item ${item.externalId || item._id}`)
     await ItemModel.updateOne({ _id: item._id }, { $set: { data, lastUpdated: new Date() } })
-
+    const dir = createTempDir()
+    await parser.saveHtml(dir, "index.html")
+    const zipped = await zipDir(dir)
 }
