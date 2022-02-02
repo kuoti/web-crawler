@@ -12,6 +12,17 @@ export async function mkdir(path: string, recursive: boolean = true): Promise<vo
     })
 }
 
+export async function rename(source: string, target: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        try {
+            fs.renameSync(source, target)
+            resolve()
+        } catch (e) {
+            reject(e)
+        }
+    })
+}
+
 export async function writeFile(file: fs.PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, options?: fs.WriteFileOptions): Promise<void> {
     return new Promise((resolve, reject) => {
         try {
@@ -35,4 +46,14 @@ export function emptyDir(dir: string) {
             fs.unlinkSync(file)
         }
     }
+}
+
+export function emptyAndDelete(dir: string) {
+    emptyDir(dir)
+    fs.rmdirSync(dir)
+}
+
+export function moveFile(filePath: string, directory: string) {
+    const fileName = path.basename(filePath)
+    fs.renameSync(filePath, path.join(directory, fileName))
 }

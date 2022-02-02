@@ -54,7 +54,7 @@ function extractData(json: any): ExtractedContent {
     attributes.forEach(({ key, value }) => features[normalizeKey(key)] = value)
     const extra = {}
     const data: ItemData = { display, features, extra }
-    return { data }
+    return { data, assets }
 }
 
 

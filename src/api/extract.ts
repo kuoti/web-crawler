@@ -1,13 +1,15 @@
 import CheerioParser from "../util/html-parser"
 import { Item, ItemData, ItemModel } from "./models/item"
 import { Network, NetworkModel } from "./models/network"
-import { get, getHtml } from "./http-client"
+import { downloadFile, get, getHtml } from "./http-client"
 import diff from 'deep-diff'
 import { discover } from "./item-service"
 import { clone, createObject } from "../util/common"
 import log4js from "log4js"
 import { connectMongo } from "../util/mongo"
-import { createTempDir, zipDir } from './storage'
+import { createTempDir, getStorageDirectory, moveToStorage, zipDir } from './storage'
+import path from 'path'
+import { emptyAndDelete, moveFile } from "../util/filesystem"
 
 const logger = log4js.getLogger("extract")
 
@@ -108,5 +110,12 @@ async function processContent(item: Item, extractor: ItemDataExtractor, parser: 
     await ItemModel.updateOne({ _id: item._id }, { $set: { data, lastUpdated: new Date() } })
     const dir = createTempDir()
     await parser.saveHtml(dir, "index.html")
+
+    let idx = 1
+    for (const asset of assets) {
+        await downloadFile(asset, dir, `img_${idx++}${path.extname(asset)}`)
+    }
     const zipped = await zipDir(dir)
+    emptyAndDelete(dir)
+    await moveToStorage(zipped, `${network.key}/history/${item._id}`)
 }
