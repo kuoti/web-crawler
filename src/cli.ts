@@ -7,6 +7,7 @@ import * as logging from './util/logging'
 import * as log4js from 'log4js'
 import yargs, { ArgumentsCamelCase } from "yargs";
 import { explore } from './api/explore'
+import { extract } from './api/extract';
 
 
 const logger = log4js.getLogger()
@@ -38,6 +39,13 @@ argParser.command("explore", "Finds new items to process later",
     { explorer: { describe: "Network key to process", string: true, demandOption: true } }, (argv: ArgumentsCamelCase) => {
         updateLogLevel(argv);
         explore(argv.explorer.toString()).then(() => end(0)).catch(e => end(1, e))
+    })
+
+
+argParser.command("extract", "Process all discovered items",
+    { network: { describe: "Network key to process", string: true, demandOption: true } }, (argv: ArgumentsCamelCase) => {
+        updateLogLevel(argv);
+        extract(argv.network.toString()).then(() => end(0)).catch(e => end(1, e))
     })
 
 

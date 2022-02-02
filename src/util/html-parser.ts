@@ -19,15 +19,15 @@ export default class CheerioParser {
         return this.$(selector).toArray().map(n => this.$(n))
     }
 
-    findNotEmpty(selector: string){
+    findNotEmpty(selector: string) {
         const result = this.findAll(selector)
-        if(result.length == 0) throw new  ElementNotFoundError(`Using selector ${selector} at ${this.url}`)
+        if (result.length == 0) throw new ElementNotFoundError(`Using selector ${selector} at ${this.url}`)
         return result
     }
 
-    async saveHtml(){ 
+    async saveHtml(fileName: string) {
         const dataDir = path.join(process.cwd(), 'data', 'pages')
-        fs.mkdirSync(dataDir, {recursive: true})
-        fs.writeFileSync(path.join(dataDir, `content.html`), this.$.html(), {encoding: 'utf-8'})
+        fs.mkdirSync(dataDir, { recursive: true })
+        fs.writeFileSync(path.join(dataDir, fileName), this.$.html(), { encoding: 'utf-8' })
     }
 }

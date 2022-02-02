@@ -4,14 +4,43 @@ import { string } from 'yargs'
 const DataHistorySchema = new mongoose.Schema({
     date: { type: Date, required: true },
     changes: {}
-}, { id: false, versionKey: false })
+}, { _id: false, versionKey: false })
+
+const ItemDisplaySchema = new mongoose.Schema({
+    title: { type: String, required: true },
+    description: String,
+    image: String,
+    featured: {},
+    location: {}
+}, { _id: false, versionKey: false })
+
+export interface ItemDisplay {
+    title: string
+    description?: string
+    image?: string
+    featured?: any
+    location?: any
+}
+
+const ItemDataSchema = new mongoose.Schema({
+    display: { type: ItemDisplaySchema, required: true },
+    features: {},
+    extra: {}
+}, { _id: false, versionKey: false, minimize: false })
+
+export interface ItemData {
+    display: ItemDisplay
+    features: any
+    extra: any
+}
 
 const ItemSchema = new mongoose.Schema({
     uri: { type: String },
     externalId: { type: String },
     discoveredAt: { type: Date, default: () => new Date() },
-    lastDiscovered: {type: Date, default: () => new Date() },
-    data: {},
+    lastDiscovered: { type: Date, default: () => new Date() },
+    lastUpdated: { type: Date },
+    data: { type: ItemDataSchema },
     lastCheckedAt: Date,
     state: { type: String, enum: ['created', 'fecthed', 'removed', 'error'], default: 'created' },
     history: [DataHistorySchema]
@@ -24,6 +53,7 @@ export interface DataHistory {
     date: Date
     changes: any
 }
+
 
 export interface Item {
     _id: ObjectId
@@ -50,7 +80,7 @@ export interface Item {
     /**
      * Last extracted data
      */
-    data?: string
+    data?: ItemData
     /**
      * History of changes over data
      */

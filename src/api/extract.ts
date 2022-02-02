@@ -1,17 +1,20 @@
 import CheerioParser from "../util/html-parser"
-import { Item, ItemModel } from "./models/item"
+import { Item, ItemData, ItemModel } from "./models/item"
 import { Network, NetworkModel } from "./models/network"
 import { get, getHtml } from "./http-client"
 import diff from 'deep-diff'
 import { discover } from "./item-service"
-import { createObject } from "../util/common"
+import { clone, createObject } from "../util/common"
 import log4js from "log4js"
+import { connectMongo } from "../util/mongo"
 
 const logger = log4js.getLogger("extract")
 
 export interface ExtractedContent {
+    data: ItemData
     itemLinks?: string[]
-    data: any
+    assets?: string[]
+    skipSaveSnapshot?: boolean
 }
 
 export interface ExtractorContext {
@@ -35,9 +38,10 @@ export interface ItemDataExtractor {
 }
 
 
-export async function extract(networkKey: string, groupName: string) {
+export async function extract(networkKey: string) {
     //const query = { lastProcessed: { $dateSubtract: { startDate: "$$NOW", unit: "day", amount: 1 } } } //Getting a query for mongo
-    const query = {}
+    await connectMongo()
+    const query = { externalId: 'MCO-854582290' } //MCO-854582290-chevrolet-tracker-ls-_JM
     const network = await NetworkModel.findOne({ key: networkKey })
     if (!network) throw new Error(`Network not found ${networkKey}`)
     const extractor = await createObject(`../networks/${networkKey}/extractors/default.ts`)
@@ -55,7 +59,7 @@ async function processPaginated(query: any, extractor: ItemDataExtractor, networ
 }
 
 async function processPage(query: any, extractor: ItemDataExtractor, network: Network, page: number, pageSize: number): Promise<boolean> {
-    
+
     const skip = page * pageSize
     const limit = pageSize
     const results: Array<Item> = await ItemModel.find(query, {}, { skip, limit })
@@ -68,6 +72,7 @@ async function processPage(query: any, extractor: ItemDataExtractor, network: Ne
             await processContent(item, extractor, response.$, network)
         } else {
             logger.warn(`Received a invalid response code ${response.statusCode}`)
+            //TODO: Handle this sad path
         }
     }
     return true
@@ -83,13 +88,22 @@ function buildUrl(item: Item, extractor: any, newtwork: Network): string {
 }
 
 async function processContent(item: Item, extractor: ItemDataExtractor, parser: CheerioParser, network: Network) {
-    const { itemLinks, data } = await extractor.extract(parser, network)
-    const current = item.data || {}
-    const changes = diff(current, data)
+    const { itemLinks = [], data, assets = [], skipSaveSnapshot = false } = await extractor.extract(parser, network)
     for (const itemLink of itemLinks) {
         await discover(itemLink)
     }
+    const current = clone(item.data || {})
+    const changes = diff(current, data)
+
     if (!changes) {
+        logger.info(`No changes detected on item ${item.externalId}`)
         return
     }
+    logger.debug(`${assets.length} assets detected in result`)
+    if (item.data) {
+        const history = item.history || []
+    }
+    logger.info(`Updating item ${item.externalId || item._id}`)
+    await ItemModel.updateOne({ _id: item._id }, { $set: { data, lastUpdated: new Date() } })
+
 }

@@ -24,8 +24,6 @@ function extractExternalId(url: string): string | undefined {
 }
 
 async function exploreResultsPage($: CheerioParser, ctx: ExploringContext) {
-
-    $.saveHtml()
     const elements = $.findAll(".ui-search-row")
     if (elements.length == 0) {
         logger.warn(`No elements found in current page`)
@@ -49,7 +47,7 @@ async function exploreResultsPage($: CheerioParser, ctx: ExploringContext) {
 
 export async function exploreResults(url: string, ctx: ExploringContext) {
     logger.debug(`Getting page at url ${url}`)
-    const { $, statusCode } = await getHtml(url)
+    const { $, statusCode } = await getHtml(url, { userAgentType: 'mobile' })
     if (statusCode != 200) {
         logger.error(`Unable to get page at ${url}, result code: ${statusCode}`)
         return
