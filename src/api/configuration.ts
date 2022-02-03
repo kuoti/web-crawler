@@ -1,36 +1,14 @@
 import { connectMongo } from "../util/mongo"
-import { NetworkModel } from "./models/network"
-import Explorer from "./models/explorer"
+import { NetworkExplorerModel, NetworkExplorer } from "./models/explorer"
 import ExplorerResult from "./models/explorer-result"
 import { ExploringContext } from "./explore"
 
-export interface CacheEntry {
-    value: any
-    cachedAt: number
-    lastHit: number
-}
 
-export interface ExplorerConfiguration {
-    networkKey: string
-    explorerKey: string
-    lastResult: any
-    cache: Map<string, CacheEntry>
-    configuration: any
-}
 
-export interface NetworkConfiguration {
-    key: string
-    explorers: Map<string, ExplorerConfiguration>
-}
 
-export async function getNetworkConfiguration(key: string): Promise<NetworkConfiguration> {
+export async function getExplorer(networkKey: String, explorerKey: string): Promise<NetworkExplorer> {
     await connectMongo()
-    return await NetworkModel.findOne({ key })
-}
-
-export async function getExplorer(networkKey: String, explorerKey: string): Promise<ExplorerConfiguration> {
-    await connectMongo()
-    return await Explorer.findOne({ networkKey, explorerKey })
+    return await NetworkExplorerModel.findOne({ networkKey, explorerKey })
 }
 
 export async function updateNetworkExplorerState(networkKey: string, explorerKey: string, ctx: ExploringContext) {
@@ -38,7 +16,7 @@ export async function updateNetworkExplorerState(networkKey: string, explorerKey
     const cache = ctx.getCache()
     const state = 'completed'
     const lastResult = { state }
-    await Explorer.findOneAndUpdate({ networkKey, explorerKey }, { $set: { lastResult, cache } })
+    await NetworkExplorerModel.findOneAndUpdate({ networkKey, explorerKey }, { $set: { lastResult, cache } })
     await ExplorerResult.create({ networkKey, explorerKey, state, stats: ctx.getStats() })
 }
 
@@ -46,6 +24,6 @@ export async function updateNetworkExplorerStateError(networkKey: string, explor
     const state = 'failed'
     const lastResult = { error, state }
     const cache = ctx.getCache()
-    await Explorer.updateOne({ networkKey, explorerKey }, { $set: { lastResult, cache } })
+    await NetworkExplorerModel.updateOne({ networkKey, explorerKey }, { $set: { lastResult, cache } })
     await ExplorerResult.create({ networkKey, explorerKey, state, stats: ctx.getStats() })
 }

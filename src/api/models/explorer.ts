@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { ObjectId } from "mongoose";
 
 const CachedValue = new mongoose.Schema({
     cachedAt: Number,
@@ -6,13 +6,29 @@ const CachedValue = new mongoose.Schema({
     lastHit: Number
 }, { _id: false, versionKey: false })
 
-const NetworkExplorer = new mongoose.Schema({
+const NetworkExplorerSchema = new mongoose.Schema({
     networkKey: { type: String, required: true },
     explorerKey: { type: String, required: true },
     configuration: {},
-    cache: { type: Map, of: CachedValue},
+    cache: { type: Map, of: CachedValue },
     lastResult: {}
 }, { _id: false, versionKey: false })
 
 
-export default mongoose.models.NetworkExplorer || mongoose.model('NetworkExplorer', NetworkExplorer, 'network-explorers')
+export interface CacheEntry {
+    value: any
+    cachedAt: number
+    lastHit: number
+}
+
+
+export interface NetworkExplorer {
+    _id: ObjectId
+    networkKey: string
+    explorerKey: string
+    lastResult: any
+    cache: Map<string, CacheEntry>
+    configuration: any
+}
+
+export const NetworkExplorerModel = mongoose.models.NetworkExplorer || mongoose.model('NetworkExplorer', NetworkExplorerSchema, 'network-explorers')

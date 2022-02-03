@@ -1,16 +1,18 @@
-import { ExplorerConfiguration, CacheEntry, updateNetworkExplorerState, updateNetworkExplorerStateError, getExplorer } from '../api/configuration'
+import { updateNetworkExplorerState, updateNetworkExplorerStateError, getExplorer } from '../api/configuration'
 import log4js from 'log4js'
 import { discover } from './item-service'
 import { clone } from '../util/common'
+import { NetworkModel } from './models/network'
+import { CacheEntry, NetworkExplorer, NetworkExplorerModel } from './models/explorer'
 
 const logger = log4js.getLogger("explorer")
 
 export interface ExploringContext {
-    configuration: ExplorerConfiguration
+    configuration: NetworkExplorer
     addItemLink(url: string, externalId?: string): Promise<boolean>;
     putValue(key: string, value: any);
     getValue(key: string): any | undefined;
-    cacheValue(key: string, value: any);
+    cacheValue(key: string, value: any): Promise<void>;
     isCached(key: string, ttlhours?: number): boolean;
     getCached(key: string, ttlhours?: number): any | undefined;
     invalidateCached(key: string): void;
@@ -58,7 +60,7 @@ class DefaultExploringContext implements ExploringContext {
     values = new Map<string, any>();
     stats = new NumericStats()
 
-    constructor(public configuration: ExplorerConfiguration) {
+    constructor(public configuration: NetworkExplorer) {
     }
 
     getConfiguration(key: string, defValue: any) {
@@ -103,10 +105,11 @@ class DefaultExploringContext implements ExploringContext {
         this.configuration.cache.delete(key)
     }
 
-    cacheValue(key: string, value: any, expiresinHours: number = 24) {
+    async cacheValue(key: string, value: any, expiresinHours: number = 24): Promise<void> {
         const expires = 1000 * 60 * 60 * expiresinHours
         const entry: CacheEntry = { value, lastHit: Date.now(), cachedAt: Date.now() }
         this.configuration.cache.set(key, entry)
+        await NetworkExplorerModel.findByIdAndUpdate(this.configuration._id, { $set: { cache: this.configuration.cache } })
     }
 
     async addItemLink(url: string, externalId?: string): Promise<boolean> {
@@ -138,7 +141,7 @@ export interface Explorer {
     explore(context: ExploringContext): Promise<any>
 }
 
-async function createExplorer(networkKey: string, configuration: ExplorerConfiguration): Promise<Explorer> {
+async function createExplorer(networkKey: string, configuration: NetworkExplorer): Promise<Explorer> {
     const key = configuration.explorerKey
     const includePath = `../networks/${networkKey}/explorers/${key}.ts`
     logger.debug(`Loading explorer from ${includePath}`)
@@ -150,10 +153,10 @@ export async function explore(explorerPath: string) {
     const [networkKey, explorerKey] = explorerPath.split(":")
     //const networks = await getNetworkConfiguration(networkKey);
     const configuration = await getExplorer(networkKey, explorerKey)
-    if(!configuration){
+    if (!configuration) {
         throw new Error(`No explorer found: ${explorerPath}`)
     }
-    
+
     logger.info(`Exploring ${explorerPath}`)
     logger.debug(`Creating explorer ${configuration.explorerKey} for network ${explorerPath}`)
     logger.info(`Explorer configuration: ${JSON.stringify(configuration.configuration)}`)
