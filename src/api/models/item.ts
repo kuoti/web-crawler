@@ -40,6 +40,7 @@ const ItemSchema = new mongoose.Schema({
     discoveredAt: { type: Date, default: () => new Date() },
     lastDiscovered: { type: Date, default: () => new Date() },
     lastUpdated: { type: Date },
+    deletedAt: { type: Date },
     data: { type: ItemDataSchema },
     lastCheckedAt: Date,
     state: { type: String, enum: ['created', 'fecthed', 'removed', 'error'], default: 'created' },

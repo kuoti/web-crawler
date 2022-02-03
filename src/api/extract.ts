@@ -50,9 +50,6 @@ function validateFilterPath(filterPath: string): { networkKey, filterKey } {
 
 
 export async function extract(filterPath: string) {
-    //TODO: Fetch a query from database using network splitted key
-    //TODO: Need to handle exceptions that might happend during extraction process
-    //const query = { lastProcessed: { $dateSubtract: { startDate: "$$NOW", unit: "day", amount: 1 } } } //Getting a query for mongo
     await connectMongo()
 
     const { networkKey, filterKey } = validateFilterPath(filterPath)
@@ -88,15 +85,22 @@ async function processPage(filter: Filter, extractor: ItemDataExtractor, network
 
     for (const item of results) {
         const url = buildUrl(item, extractor, network)
-        const response = await getHtml(url)
-        if (response.statusCode == 200) {
-            await processContent(item, extractor, response.$, network)
+        const { $, statusCode } = await getHtml(url)
+        if (statusCode == 200) {
+            await processContent(item, extractor, $, network)
+        } else if (statusCode == 404) {
+            await markItemDeleted(item)
         } else {
-            logger.warn(`Received a invalid response code ${response.statusCode}`)
+            logger.warn(`Received a invalid response code ${statusCode}`)
             //TODO: Handle this sad path
         }
     }
     return true
+}
+
+async function markItemDeleted(item: Item) {
+    logger.info(`Item was deleted ${item._id}`)
+    await ItemModel.findByIdAndUpdate(item._id, { state: 'deleted', deletedAt: new Date() })
 }
 
 function buildUrl(item: Item, extractor: any, newtwork: Network): string {

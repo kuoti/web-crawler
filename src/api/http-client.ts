@@ -56,14 +56,22 @@ export async function get(url: string, options?: RequestOptions): Promise<AxiosR
 }
 
 export async function getHtml(url: string, options?: RequestOptions): Promise<HtmlGetResult> {
-    const response = await get(url, options)
-    //console.log("Response request: ", inspect(response.request))
-    const statusCode = response.status
-    if (statusCode != 200) return { statusCode, response }
-    logger.debug(`Loading and parsing html response`)
-    const data = response.data
-    const $ = cheerio.load(data)
-    return { statusCode, response, $: new CheerioParser($, url) }
+    try {
+        const response = await get(url, options)
+        //console.log("Response request: ", inspect(response.request))
+        const statusCode = response.status
+        if (statusCode != 200) return { statusCode, response }
+        logger.debug(`Loading and parsing html response`)
+        const data = response.data
+        const $ = cheerio.load(data)
+        return { statusCode, response, $: new CheerioParser($, url) }
+    } catch (e) {
+        const { response } = e
+        if (response) {
+            return { statusCode: response.status, response }
+        }
+        throw e
+    }
 }
 
 export async function getJson(url: string, profile?: string): Promise<HtmlJsonResponse> {
