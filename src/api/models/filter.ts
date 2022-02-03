@@ -4,8 +4,8 @@ const FilterSchema = new mongoose.Schema({
     networkKey: String,
     key: String,
     description: String,
-    query: String,
-    sort: String
+    query: {},
+    sort: {}
 })
 
 export interface Filter {

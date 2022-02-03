@@ -92,7 +92,7 @@ async function processPage(filter: Filter, extractor: ItemDataExtractor, network
             await markItemDeleted(item)
         } else {
             logger.warn(`Received a invalid response code ${statusCode}`)
-            //TODO: Handle this sad path
+            throw new Error(`Unhandled error code ${statusCode}`)
         }
     }
     return true
