@@ -133,7 +133,7 @@ async function processContent(item: Item, extractor: ItemDataExtractor, parser: 
     logger.info(`Updating item ${item.externalId || item._id}`)
     await ItemModel.updateOne({ _id: item._id }, { $set: { data, lastUpdated: new Date(), history } })
     const dir = createTempDir()
-    await parser.saveHtml(dir, "index.html")
+    await parser.saveHtmlInDirectory(dir, "index.html")
 
     let idx = 1
     for (const asset of assets) {

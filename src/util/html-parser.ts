@@ -25,7 +25,11 @@ export default class CheerioParser {
         return result
     }
 
-    async saveHtml(directory: string, fileName: string): Promise<void> {
+    async saveHtmlInDirectory(directory: string, fileName: string): Promise<void> {
         await writeFile(path.join(directory, fileName), this.$.html(), { encoding: 'utf-8' })
+    }
+
+    async saveHtmlInFile(filePath: string): Promise<void> {
+        await writeFile(filePath, this.$.html(), { encoding: 'utf-8' })
     }
 }

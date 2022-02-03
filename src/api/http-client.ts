@@ -5,10 +5,21 @@ import CheerioParser from "../util/html-parser";
 import { inspect } from 'util'
 import fs from 'fs'
 import path from 'path'
-import { md5 } from "../util/common";
-import { reject } from "lodash";
+import { cleanEnv, str } from 'envalid'
+
+let __env = undefined
+
+
+function getEnv() {
+    if (__env) return __env
+    __env = cleanEnv(process.env, {
+        ROCKETSCRAPE_API_KEY: str({ desc: "Rocketscrape api key", docs: "https://docs.rocketscrape.com/" })
+    })
+    return __env
+}
 
 const logger = log4js.getLogger("http")
+const rocketscrapeUrl = "https://api.rocketscrape.com"
 
 export interface HtmlGetResult {
     statusCode: number
@@ -23,6 +34,7 @@ export interface HtmlJsonResponse {
 }
 export interface RequestOptions {
     userAgentType?: 'mobile' | 'desktop'
+    skipProxy?: boolean
 }
 
 axios.interceptors.request.use(request => {
@@ -35,11 +47,9 @@ axios.interceptors.request.use(request => {
 const mobileUserAgent = "Mozilla/5.0 (Linux; Android 6.0.1; Moto G (4)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Mobile Safari/537.36"
 const desktopUserAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36"
 
-export function createRequestConfig(options?: RequestOptions): AxiosRequestConfig {
-
-    const resolvedOpts = options || {}
-    const userAgentType = resolvedOpts['userAgentType'] || 'desktop'
-    const userAgent = userAgentType == 'mobile' ? mobileUserAgent : desktopUserAgent
+export function createRequestConfig(options: RequestOptions = {}): AxiosRequestConfig {
+    const { skipProxy = false, userAgentType = 'mobile' } = options
+    const userAgent = skipProxy ? userAgentType == 'mobile' ? mobileUserAgent : desktopUserAgent : desktopUserAgent
     const config: AxiosRequestConfig = {
         headers: {
             'accept-language': 'es-US,es-419;q=0.9,es;q=0.8',
@@ -50,8 +60,19 @@ export function createRequestConfig(options?: RequestOptions): AxiosRequestConfi
 }
 
 
-export async function get(url: string, options?: RequestOptions): Promise<AxiosResponse> {
-    const response = await axios.get(url, createRequestConfig(options))
+export async function get(url: string, options: RequestOptions = {}): Promise<AxiosResponse> {
+    const { skipProxy = false, userAgentType = 'mobile' } = options
+    const requestConfig = createRequestConfig(options)
+    const deviceType = userAgentType
+    if (!skipProxy) {
+        const apiKey = getEnv().ROCKETSCRAPE_API_KEY
+        /*requestConfig.params = {
+            apiKey,
+            url
+        }*/
+        url = rocketscrapeUrl + `?apiKey=${apiKey}&url=${url}`
+    }
+    const response = await axios.get(url, requestConfig)
     return response
 }
 

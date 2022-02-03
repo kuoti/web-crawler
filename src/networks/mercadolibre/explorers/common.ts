@@ -2,8 +2,9 @@ import { ExploringContext, StatsKeys } from "../../../api/explore";
 import log4js from "log4js";
 import { getHtml } from '../../../api/http-client'
 import CheerioParser from "../../../util/html-parser";
+import { createTempFilePath } from "../../../api/storage";
 
-const logger = log4js.getLogger("MercadolibreDefaultExplorer")
+const logger = log4js.getLogger("MercadolibreExplorerCommon")
 const idRegex = /.*\/(?<id>MCO-[0-9]+)-.*/i
 const trackingIdPattern = /&?tracking_id=([0-9a-f]|-)+/
 const searchLayoutPattern = /&?search_layout=stack/
@@ -23,24 +24,25 @@ function extractExternalId(url: string): string | undefined {
     return matcher?.groups?.id
 }
 
-async function exploreResultsPage($: CheerioParser, ctx: ExploringContext) {
-    const elements = $.findAll(".ui-search-row")
+async function exploreResultsPage($: CheerioParser, url: string, ctx: ExploringContext) {
+    const elements = $.findAll(".ui-search-result__image > a")
     if (elements.length == 0) {
-        logger.warn(`No elements found in current page`)
+        const tmpFile = `${Date.now}.html`
+        const file = createTempFilePath(".html")
+        logger.warn(`No elements found in current page: ${url} -> ${file}`)
+        await $.saveHtmlInFile(file)
         return
     }
 
+    //Get all images, if they are same size and the size is 21090 it might be a test 
     for (const e of elements) {
-        const links = e.find("div.ui-row-item-info > a").toArray()
-            .map(el => $.$(el)).map(el => el.attr('href')).map(l => normalizeUrl(l))
-        for (let link of links) {
-            let externalId = extractExternalId(link)
-            const url = externalId ? null : link //If external id, don't need a url
-            if (!externalId) {
-                logger.warn(`Unnable to extract external id from url ${link}`)
-            }
-            await ctx.addItemLink(url, externalId)
+        const link = normalizeUrl(e.attr('href'))
+        let externalId = extractExternalId(link)
+        const url = externalId ? null : link //If external id, don't need a url
+        if (!externalId) {
+            logger.warn(`Unnable to extract external id from url ${link}`)
         }
+        await ctx.addItemLink(url, externalId)
     }
 
 }
@@ -53,7 +55,7 @@ export async function exploreResults(url: string, ctx: ExploringContext) {
         return
     }
 
-    await exploreResultsPage($, ctx)
+    await exploreResultsPage($, url, ctx)
 
     const nextLink = $.findFirst("li.andes-pagination__button--next > a")
     if (!nextLink) {

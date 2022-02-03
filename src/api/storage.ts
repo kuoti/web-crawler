@@ -8,13 +8,22 @@ const tmp = `${root}/tmp`
 const storage = `${root}/storage`
 
 export function createTempDir(): string {
-    let fullDir = undefined
-    do {
-        const fileName = new Date().toISOString().replace(/[-|:|\.]/g, "")
-        fullDir = `${root}/tmp/${fileName}`
-    } while (fs.existsSync(fullDir))
+    const fullDir = createTempFilePath()
     fs.mkdirSync(fullDir, { recursive: true })
     return fullDir
+}
+
+export function getTempDirPath(): string {
+    return tmp
+}
+
+export function createTempFilePath(extension: string = ""): string {
+    let fullPath = undefined
+    do {
+        const fileName = new Date().toISOString().replace(/[-|:|\.]/g, "") + extension
+        fullPath = `${root}/tmp/${fileName}`
+    } while (fs.existsSync(fullPath))
+    return fullPath
 }
 
 export function getStorageDirectory(subPath: string): string {
