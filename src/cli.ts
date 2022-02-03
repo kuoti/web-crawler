@@ -35,6 +35,7 @@ argParser.options('logLevel', {
 })
 
 
+//TODO: Update cli to use positional arguments
 argParser.command("explore", "Finds new items to process later",
     { explorer: { describe: "Network key to process", string: true, demandOption: true } }, (argv: ArgumentsCamelCase) => {
         updateLogLevel(argv);
@@ -42,6 +43,7 @@ argParser.command("explore", "Finds new items to process later",
     })
 
 
+//TODO: Use fetch instead of extract??
 argParser.command("extract", "Process all discovered items",
     { network: { describe: "Network key to process", string: true, demandOption: true } }, (argv: ArgumentsCamelCase) => {
         updateLogLevel(argv);

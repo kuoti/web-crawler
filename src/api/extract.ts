@@ -7,9 +7,10 @@ import { discover } from "./item-service"
 import { clone, createObject } from "../util/common"
 import log4js from "log4js"
 import { connectMongo } from "../util/mongo"
-import { createTempDir, getStorageDirectory, moveToStorage, zipDir } from './storage'
+import { createTempDir, moveToStorage, zipDir } from './storage'
 import path from 'path'
 import { emptyAndDelete } from "../util/filesystem"
+import { Filter, FilterModel, parseFilter } from "./models/filter"
 
 const logger = log4js.getLogger("extract")
 
@@ -40,32 +41,49 @@ export interface ItemDataExtractor {
     extract($: CheerioParser, ctx: ExtractorContext): Promise<ExtractedContent>
 }
 
-
-export async function extract(networkKey: string) {
-    //const query = { lastProcessed: { $dateSubtract: { startDate: "$$NOW", unit: "day", amount: 1 } } } //Getting a query for mongo
-    await connectMongo()
-    const query = { externalId: 'MCO-854582290' } //MCO-854582290-chevrolet-tracker-ls-_JM
-    const network = await NetworkModel.findOne({ key: networkKey })
-    if (!network) throw new Error(`Network not found ${networkKey}`)
-    const extractor = await createObject(`../networks/${networkKey}/extractors/default.ts`)
-    await processPaginated(query, extractor, network)
+function validateFilterPath(filterPath: string): { networkKey, filterKey } {
+    const match = filterPath.match(/^(?<networkKey>[a-z0-9]+):(?<filterKey>[a-z]+)$/)
+    if (!match) throw new Error(`Invalid filter path format ${filterPath}`)
+    const { networkKey, filterKey } = match.groups
+    return { networkKey, filterKey }
 }
 
-async function processPaginated(query: any, extractor: ItemDataExtractor, network: Network) {
+
+export async function extract(filterPath: string) {
+    //TODO: Fetch a query from database using network splitted key
+    //TODO: Need to handle exceptions that might happend during extraction process
+    //const query = { lastProcessed: { $dateSubtract: { startDate: "$$NOW", unit: "day", amount: 1 } } } //Getting a query for mongo
+    await connectMongo()
+
+    const { networkKey, filterKey } = validateFilterPath(filterPath)
+    const filter: Filter = parseFilter(await FilterModel.findOne({ key: filterKey, networkKey }))
+    if (!filter) throw new Error(`No filter with key "${filterKey}" found in network "${networkKey}"`)
+
+    const network = await NetworkModel.findOne({ key: networkKey })
+    if (!network) throw new Error(`Network not found ${networkKey}`)
+
+    //TODO: Do we need to use different extractors?
+    const extractor = await createObject(`../networks/${networkKey}/extractors/default.ts`)
+    logger.info(`Applying extraction using filter "${filterKey}"`)
+    await processPaginated(filter, extractor, network)
+}
+
+async function processPaginated(filter: Filter, extractor: ItemDataExtractor, network: Network) {
     let page = 0
     let hasElements = true
-    let pageSize = 30
+    let pageSize = network.configuration?.extractPageSize || 10
     while (hasElements) {
-        hasElements = await processPage(query, extractor, network, page, pageSize)
+        hasElements = await processPage(filter, extractor, network, page, pageSize)
         page++
     }
 }
 
-async function processPage(query: any, extractor: ItemDataExtractor, network: Network, page: number, pageSize: number): Promise<boolean> {
+async function processPage(filter: Filter, extractor: ItemDataExtractor, network: Network, page: number, pageSize: number): Promise<boolean> {
 
+    const { query, sort } = filter
     const skip = page * pageSize
     const limit = pageSize
-    const results: Array<Item> = await ItemModel.find(query, {}, { skip, limit })
+    const results: Array<Item> = await ItemModel.find(query, {}, { skip, limit, sort })
     if (results.length == 0) return false
 
     for (const item of results) {

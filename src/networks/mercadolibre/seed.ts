@@ -1,6 +1,7 @@
 import { NetworkModel } from "../../../src/api/models/network"
 import Explorer from "../../../src/api/models/explorer"
 import { connectMongo } from "../../util/mongo"
+import { FilterModel } from "../../api/models/filter"
 
 
 (async function createSeeds() {
@@ -24,6 +25,14 @@ import { connectMongo } from "../../util/mongo"
         configuration: { maxRepeatCountStrike: 100.0 },
         lastResult: {},
         cache: []
+    }, { upsert: true })
+
+    await FilterModel.findOneAndUpdate({ networkKey, key: "all" }, {
+        networkKey,
+        key: "all",
+        description: "Process all items",
+        query: "{}",
+        sort: `{ "discoveredAt":-1 }`
     }, { upsert: true })
     process.exit(0)
 })()
