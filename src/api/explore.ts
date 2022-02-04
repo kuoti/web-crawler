@@ -160,6 +160,8 @@ export async function explore(explorerPath: string) {
     logger.info(`Exploring ${explorerPath}`)
     logger.debug(`Creating explorer ${configuration.explorerKey} for network ${explorerPath}`)
     logger.info(`Explorer configuration: ${JSON.stringify(configuration.configuration)}`)
+    //TODO: Save if last run was completed, completed: false, lastRunTime: date, and state
+    //so we can resume last execution if possible
     const context = new DefaultExploringContext(configuration);
     const explorer = await createExplorer(networkKey, configuration)
     try {

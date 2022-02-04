@@ -18,7 +18,7 @@ async function getBrandIds(ctx: ExploringContext): Promise<number[]> {
     logger.info(`Fetching brand keys`)
     const brandIds = await fetchBrandsIds(ctx)
     await ctx.cacheValue("brandIds", brandIds)
-    return brandIds
+    return brandIds.sort()
 }
 
 async function getModelIds(brandId: number, ctx: ExploringContext): Promise<number[]> {
@@ -31,7 +31,7 @@ async function getModelIds(brandId: number, ctx: ExploringContext): Promise<numb
     logger.info(`Fetching brand model keys for ${brandId}`)
     const models = await fetchModels(brandId)
     await ctx.cacheValue(key, models)
-    return models
+    return models.sort()
 }
 
 async function fetchModels(brandId: number): Promise<Array<number>> {
