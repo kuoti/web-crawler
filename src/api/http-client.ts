@@ -39,7 +39,7 @@ export interface RequestOptions {
 
 axios.interceptors.request.use(request => {
     if (logger.isDebugEnabled()) {
-        logger.debug('Starting Request', inspect(request, false, 3))
+        logger.trace('Starting Request', inspect(request, false, 3))
     }
     return request
 })

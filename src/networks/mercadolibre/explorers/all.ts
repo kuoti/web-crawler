@@ -49,8 +49,10 @@ async function extractFilterIds(url: string, filterName: string): Promise<Array<
     if (statusCode != 200) throw new Error(`Unable to get filters`)
     const { available_filters } = data
     assertNotNull(available_filters, "available filters")
-    const filter = available_filters.find(f => f.id == filterName)
-    assertNotEmpty(filter, "filter list")
+    const filter = available_filters.find(f => f.id == filterName) || []
+    if (!filter || filter.length == 0) {
+        logger.warn(`Empty filter list ${filterName}`)
+    }
     return filter.values.map(m => m.id)
 }
 

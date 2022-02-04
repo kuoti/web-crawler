@@ -24,19 +24,34 @@ function extractExternalId(url: string): string | undefined {
     return matcher?.groups?.id
 }
 
-async function exploreResultsPage($: CheerioParser, url: string, ctx: ExploringContext) {
+function tryExtractAsDesktop($: CheerioParser): Array<string> | undefined {
+    logger.debug(`Attempting to get publications as desktop`)
     const elements = $.findAll(".ui-search-result__image > a")
-    if (elements.length == 0) {
-        const tmpFile = `${Date.now}.html`
+    if (elements.length == 0) return undefined
+    return elements.map(e => normalizeUrl(e.attr('href')))
+}
+
+function tryExtractAsMobile($: CheerioParser): Array<string> | undefined {
+    logger.debug(`Attempting to get publications as mobile`)
+    const elements = $.findAll(".ui-row-card__item-image-container > a")
+    if (elements.length == 0) return undefined
+    return elements.map(e => normalizeUrl(e.attr('href')))
+}
+
+async function exploreResultsPage($: CheerioParser, url: string, ctx: ExploringContext) {
+    logger.debug(`Exploring url ${url}`)
+    let elements = tryExtractAsDesktop($)
+    if (!elements) {
+        elements = tryExtractAsMobile($)
+    }
+    if (!elements) {
         const file = createTempFilePath(".html")
         logger.warn(`No elements found in current page: ${url} -> ${file}`)
         await $.saveHtmlInFile(file)
-        return
     }
+    logger.debug(`${elements.length} elements were found in ${url}`)
 
-    //Get all images, if they are same size and the size is 21090 it might be a test 
-    for (const e of elements) {
-        const link = normalizeUrl(e.attr('href'))
+    for (let link of elements) {
         let externalId = extractExternalId(link)
         const url = externalId ? null : link //If external id, don't need a url
         if (!externalId) {
@@ -44,11 +59,10 @@ async function exploreResultsPage($: CheerioParser, url: string, ctx: ExploringC
         }
         await ctx.addItemLink(url, externalId)
     }
-
 }
 
 export async function exploreResults(url: string, ctx: ExploringContext) {
-    logger.debug(`Getting page at url ${url}`)
+    logger.info(`Getting page at url ${url}`)
     const { $, statusCode } = await getHtml(url, { userAgentType: 'mobile' })
     if (statusCode != 200) {
         logger.error(`Unable to get page at ${url}, result code: ${statusCode}`)

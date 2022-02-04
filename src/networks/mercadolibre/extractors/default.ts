@@ -59,6 +59,7 @@ function extractData(json: any): ExtractedContent {
 
 
 export default class MercadolibreExtractor implements ItemDataExtractor {
+    //TODO: Get all images, if they are same size and the size is 21090 it might be a test 
     async extract($: CheerioParser, ctx: ExtractorContext): Promise<ExtractedContent> {
         const scripts = $.findAll("script")
         const script = scripts.find(s => s.html().indexOf("window.__PRELOADED_STATE__") >= 0)
