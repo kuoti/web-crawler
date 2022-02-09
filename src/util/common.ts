@@ -16,3 +16,7 @@ export function sha256(value: string): string {
 export function md5(value: string): string {
     return crypto.createHash('md5').update(value).digest('hex');
 }
+
+export function mapToObject(map: Map<string, any>): any {
+    return [...map.entries()].map(e => [e[0], e[1]]).reduce((p, c) => ({ ...p, [c[0]]: c[1] }), {})
+}

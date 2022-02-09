@@ -1,12 +1,19 @@
 import mongoose from 'mongoose'
 
-const ExplorerResultSchema = new mongoose.Schema({
-    _id: mongoose.Types.ObjectId,
-    networkKey: { type: String, required: true },
-    explorerKey: { type: String, required: true },
-    state: String,
-    date: { type: Date, default: () => new Date() },
-    stats: {}
+const ExecutionResultSchema = new mongoose.Schema({
+    arguments: {},
+    startedAt: Date,
+    endedAt: Date,
+    error: String,
+    result: {}
 }, { versionKey: false })
 
-export default mongoose.models.ExplorerResult || mongoose.model('ExplorerResult', ExplorerResultSchema, 'explorer-result')
+export interface ExecutionResult {
+    arguments: any
+    startedAt: Date
+    endedAt?: Date
+    error?: string
+    result?: any
+}
+
+export const ExecutionResultModel = mongoose.models.ExecutionResult || mongoose.model('ExecutionResult', ExecutionResultSchema, 'execution-result')

@@ -1,12 +1,11 @@
-import { updateNetworkExplorerState, updateNetworkExplorerStateError } from '../api/configuration'
 import log4js from 'log4js'
 import { discover } from './item-service'
-import { clone } from '../util/common'
-import { NetworkModel } from './models/network'
+import { mapToObject } from '../util/common'
 import { CacheEntry, NetworkExplorer, NetworkExplorerModel } from './models/explorer'
 import { connectMongo } from '../util/mongo'
+import { ArgumentsCamelCase } from 'yargs'
 
-const logger = log4js.getLogger("explorer")
+const logger = log4js.getLogger("explore")
 
 export interface ExploringContext {
     configuration: NetworkExplorer
@@ -155,35 +154,32 @@ async function createExplorer(networkKey: string, configuration: NetworkExplorer
     return new module.default()
 }
 
-export async function explore(explorerPath: string) {
+export async function explore(argv: ArgumentsCamelCase): Promise<any> {
+    const explorerPath: string = argv.explorer as string
     const [networkKey, explorerKey] = explorerPath.split(":")
-    //const networks = await getNetworkConfiguration(networkKey);
+    logger.info(`Creating explorer ${explorerKey} for network ${explorerPath}`)
+
     await connectMongo()
     const configuration = await NetworkExplorerModel.where({ networkKey, explorerKey }).findOne()
     if (!configuration) {
         throw new Error(`No explorer found: ${explorerPath}`)
     }
 
-    logger.info(`Exploring ${explorerPath}`)
-    logger.info(`Creating explorer ${configuration.explorerKey} for network ${explorerPath}`)
     logger.info(`Explorer configuration: ${JSON.stringify(configuration.configuration)}`)
-    //TODO: Save if last run was completed, completed: false, lastRunTime: date, and state
-    //so we can resume last execution if possible
     const context = new DefaultExploringContext(configuration);
 
     const explorer = await createExplorer(networkKey, configuration)
-    await NetworkExplorerModel.findByIdAndUpdate(configuration._id, { $set: { lastRun: { startedAt: new Date() } } })
-    try {
-        logger.info(`Running explorer for network ${explorerPath}`)
-        await explorer.explore(context);
-        logger.info(`Network explorer execution completed ${explorerPath}`)
-        await NetworkExplorerModel.findByIdAndUpdate(configuration._id, { $set: { lastRun: { endedAt: new Date() } } })
-        const stats = [...context.getStats().entries()].reduce((p, c) => ({ ...p, [c[0]]: c[1] }), {})
-        logger.info(`Execution numbers: ${JSON.stringify(stats)}`)
-        await updateNetworkExplorerState(explorerPath, explorerKey, context)
-    } catch (e) {
-        logger.error(`Error running network explorer ${explorerPath}`, e)
-        await updateNetworkExplorerStateError(explorerPath, explorerKey, e, context)
-    }
 
+    await NetworkExplorerModel.findByIdAndUpdate(configuration._id, { $set: { lastRun: { startedAt: new Date() } } })
+    logger.info(`Running explorer for network ${explorerPath}`)
+
+    await explorer.explore(context);
+    logger.info(`Network explorer execution completed ${explorerPath}`)
+
+    const stats = mapToObject(context.getStats())
+    const cache = mapToObject(context.getCache())
+    await NetworkExplorerModel.findByIdAndUpdate(configuration._id, { $set: { cache, "lastRun.endedAt": new Date() } })
+
+    logger.info(`Execution numbers: ${JSON.stringify(stats)}`)
+    return stats
 }

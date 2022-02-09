@@ -1,13 +1,12 @@
 import mongoose from 'mongoose'
 
 const FilterSchema = new mongoose.Schema({
-    _id: mongoose.Types.ObjectId,
     networkKey: String,
     key: String,
     description: String,
     query: {},
     sort: {}
-})
+}, { versionKey: false })
 
 export interface Filter {
     networkKey: String,

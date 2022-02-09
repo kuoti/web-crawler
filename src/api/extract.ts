@@ -11,6 +11,7 @@ import { createTempDir, moveToStorage, zipDir } from './storage'
 import path from 'path'
 import { emptyAndDelete } from "../util/filesystem"
 import { Filter, FilterModel, parseFilter } from "./models/filter"
+import { ArgumentsCamelCase } from "yargs"
 
 const logger = log4js.getLogger("extract")
 
@@ -49,7 +50,9 @@ function validateFilterPath(filterPath: string): { networkKey, filterKey } {
 }
 
 
-export async function extract(filterPath: string) {
+export async function extract(argv: ArgumentsCamelCase) {
+
+    const filterPath = argv.filter as string
     await connectMongo()
 
     const { networkKey, filterKey } = validateFilterPath(filterPath)
@@ -87,7 +90,11 @@ async function processPage(filter: Filter, extractor: ItemDataExtractor, network
         const url = buildUrl(item, extractor, network)
         const { $, statusCode } = await getHtml(url)
         if (statusCode == 200) {
-            await processContent(item, extractor, $, network)
+            try {
+                await processContent(item, extractor, $, network)
+            } catch (e) {
+                logger.error(`Error while processing item ${item.externalId}`, e)
+            }
         } else if (statusCode == 404) {
             await markItemDeleted(item)
         } else {

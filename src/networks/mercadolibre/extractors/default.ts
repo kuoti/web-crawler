@@ -3,6 +3,9 @@ import { ItemData, ItemDisplay } from "../../../api/models/item";
 import { assertNotEquals, assertNotNull } from "../../../util/assert";
 import CheerioParser from "../../../util/html-parser";
 import lodash from 'lodash'
+import log4js from "log4js"
+
+const logger = log4js.getLogger("MercadolibreExtractor")
 
 const startSubstring = "window.__PRELOADED_STATE__ = {"
 

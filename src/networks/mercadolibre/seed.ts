@@ -22,7 +22,7 @@ import { FilterModel } from "../../api/models/filter"
     await NetworkExplorerModel.findOneAndUpdate({ networkKey, explorerKey: 'all' }, {
         networkKey,
         explorerKey: 'all',
-        configuration: { maxRepeatCountStrike: 100.0 },
+        configuration: {},
         lastResult: {},
         cache: []
     }, { upsert: true })
