@@ -12,8 +12,6 @@ import { extract } from './api/extract';
 
 const logger = log4js.getLogger()
 
-
-
 function end(exitCode: number, error?) {
     if (error != null)
         logger.error(`Ending execution with error: `, error)
@@ -49,7 +47,6 @@ argParser.command("extract", "Process all discovered items",
         updateLogLevel(argv);
         extract(argv.network.toString()).then(() => end(0)).catch(e => end(1, e))
     })
-
 
 argParser.demandCommand(1, 1)
 argParser.parse()

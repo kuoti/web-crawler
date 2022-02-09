@@ -50,8 +50,9 @@ async function extractFilterIds(url: string, filterName: string): Promise<Array<
     const { available_filters } = data
     assertNotNull(available_filters, "available filters")
     const filter = available_filters.find(f => f.id == filterName) || []
-    if (!filter || filter.length == 0) {
-        logger.warn(`Empty filter list ${filterName}`)
+    if (!filter?.values || !filter?.values?.length) {
+        logger.warn(`Empty filter list ${filterName} for url ${url}`)
+        return []
     }
     return filter.values.map(m => m.id)
 }

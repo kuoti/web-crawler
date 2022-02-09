@@ -11,8 +11,9 @@ const logConfig = {
     }
 }
 
-export function configure(levelName: string){
+export function configure(levelName: string) {
     console.log(`Logger lever is ${levelName}`)
     logConfig.categories.default.level = levelName
     log4js.configure(logConfig);
+    log4js.getLogger().info("== STARTING EXECUTION", process.argv)
 }
