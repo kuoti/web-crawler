@@ -16,9 +16,9 @@ async function getBrandIds(ctx: ExploringContext): Promise<number[]> {
         return cached
     }
     logger.info(`Fetching brand keys`)
-    const brandIds = await fetchBrandsIds(ctx)
+    const brandIds = (await fetchBrandsIds(ctx)).sort()
     await ctx.cacheValue("brandIds", brandIds)
-    return brandIds.sort()
+    return brandIds
 }
 
 async function getModelIds(brandId: number, ctx: ExploringContext): Promise<number[]> {
@@ -29,9 +29,9 @@ async function getModelIds(brandId: number, ctx: ExploringContext): Promise<numb
         return cached
     }
     logger.info(`Fetching brand model keys for ${brandId}`)
-    const models = await fetchModels(brandId)
+    const models = (await fetchModels(brandId)).sort()
     await ctx.cacheValue(key, models)
-    return models.sort()
+    return models
 }
 
 async function fetchModels(brandId: number): Promise<Array<number>> {
@@ -60,7 +60,7 @@ async function getModelUrl(brandId: number, model: number): Promise<string | und
     try {
         const requestConfig = createRequestConfig()
         requestConfig.maxRedirects = 0
-        logger.info(`Getting url for brand ${brandId}`)
+        logger.info(`Getting url for brand ${brandId} - model ${model}`)
         await postUrlEncoded("https://www.tucarro.com.co/vehiculos/search", {
             category: 'MCO1744', BRAND: `${brandId}`, MODEL: `${model}`, price_from: '', price_to: '', years_from: '', years_to: ''
         }, requestConfig)
@@ -75,11 +75,31 @@ async function getModelUrl(brandId: number, model: number): Promise<string | und
 
 export default class MercadolibreAllExplorer implements Explorer {
     explore = async function (ctx: ExploringContext) {
-        const brands = await getBrandIds(ctx)
+        const { startedAt, endedAt, stateVars } = ctx.configuration?.lastRun || {}
+        if (startedAt && !endedAt) {
+            logger.warn(`Last run didn'end well, resuming from`, stateVars)
+        }
+        let brands = await getBrandIds(ctx)
+        const { brand: startBrand, model: startModel } = stateVars || {}
+        const index = brands.indexOf(startBrand)
+        if (index > 0) {
+            brands = brands.slice(index)
+            if (brands.length > 0)
+                logger.info(`Starting at brand ${brands[0]}`)
+        }
+
         for (const brand of brands) {
-            const models = await getModelIds(brand, ctx)
+            let models = await getModelIds(brand, ctx)
+            if (brand == startBrand) {
+                const startIndex = models.indexOf(startModel)
+                models = startIndex == (models.length - 1) ? [] : models.slice(startIndex)
+                if (models.length > 0)
+                    logger.info(`Starting at model ${models[0]}`)
+            }
+
             for (const model of models) {
                 const url = await getModelUrl(brand, model)
+                await ctx.saveStateVars({ brand, model })
                 await exploreResults(url, ctx)
             }
         }

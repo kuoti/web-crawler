@@ -35,6 +35,7 @@ export interface ItemData {
 }
 
 const ItemSchema = new mongoose.Schema({
+    _id: mongoose.Types.ObjectId,
     uri: { type: String },
     externalId: { type: String },
     discoveredAt: { type: Date, default: () => new Date() },

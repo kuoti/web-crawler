@@ -5,12 +5,6 @@ import { ExploringContext } from "./explore"
 
 
 
-
-export async function getExplorer(networkKey: String, explorerKey: string): Promise<NetworkExplorer> {
-    await connectMongo()
-    return await NetworkExplorerModel.findOne({ networkKey, explorerKey })
-}
-
 export async function updateNetworkExplorerState(networkKey: string, explorerKey: string, ctx: ExploringContext) {
     await connectMongo()
     const cache = ctx.getCache()
