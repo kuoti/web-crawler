@@ -20,3 +20,18 @@ export function md5(value: string): string {
 export function mapToObject(map: Map<string, any>): any {
     return [...map.entries()].map(e => [e[0], e[1]]).reduce((p, c) => ({ ...p, [c[0]]: c[1] }), {})
 }
+
+
+export class ExecutionError extends Error {
+    constructor(message?: string, cause?: Error) {
+        super(message)
+        if (cause)
+            this.stack += '\nCaused by: ' + cause.stack;
+    }
+}
+
+export interface ExecutionResult {
+    result?: any
+    error?: ExecutionError
+    partialResult?: any
+}

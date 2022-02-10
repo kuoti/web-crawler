@@ -25,13 +25,15 @@ export interface ItemDisplay {
 const ItemDataSchema = new mongoose.Schema({
     display: { type: ItemDisplaySchema, required: true },
     features: {},
-    extra: {}
+    extra: {},
+    assets: [String]
 }, { _id: false, versionKey: false, minimize: false })
 
 export interface ItemData {
     display: ItemDisplay
     features: any
     extra: any
+    assets: string[]
 }
 
 const ItemSchema = new mongoose.Schema({

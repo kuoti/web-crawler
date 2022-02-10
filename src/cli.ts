@@ -11,6 +11,7 @@ import { extract } from './api/extract';
 import { ExecutionResultModel } from './api/models/explorer-result';
 import { connectMongo } from './util/mongo';
 import { listFilters } from './api/filter';
+import { ExecutionResult } from './util/common';
 
 
 const logger = log4js.getLogger()
@@ -26,7 +27,7 @@ function end(exitCode: number, error?) {
     })
 }
 
-async function runPromiseAsync(method: (argv: ArgumentsCamelCase) => Promise<any>, argv: ArgumentsCamelCase) {
+async function runPromiseAsync(method: (argv: ArgumentsCamelCase) => Promise<ExecutionResult>, argv: ArgumentsCamelCase) {
     logging.configure(argv.logLevel as string)
     await connectMongo()
     const executionResult = new ExecutionResultModel({ startedAt: new Date(), arguments: process.argv })

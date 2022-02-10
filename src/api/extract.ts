@@ -4,7 +4,7 @@ import { Network, NetworkModel } from "./models/network"
 import { downloadFile, get, getHtml } from "./http-client"
 import diff from 'deep-diff'
 import { discover } from "./item-service"
-import { clone, createObject } from "../util/common"
+import { clone, createObject, ExecutionResult, mapToObject } from "../util/common"
 import log4js from "log4js"
 import { connectMongo } from "../util/mongo"
 import { createTempDir, moveToStorage, zipDir } from './storage'
@@ -12,13 +12,13 @@ import path from 'path'
 import { emptyAndDelete } from "../util/filesystem"
 import { Filter, FilterModel, parseFilter } from "./models/filter"
 import { ArgumentsCamelCase } from "yargs"
+import { NumericStats } from "../util/stats"
 
 const logger = log4js.getLogger("extract")
 
 export interface ExtractedContent {
     data: ItemData
     itemLinks?: string[]
-    assets?: string[]
     skipSaveSnapshot?: boolean
 }
 
@@ -50,7 +50,7 @@ function validateFilterPath(filterPath: string): { networkKey, filterKey } {
 }
 
 
-export async function extract(argv: ArgumentsCamelCase) {
+export async function extract(argv: ArgumentsCamelCase): Promise<ExecutionResult> {
 
     const filterPath = argv.filter as string
     await connectMongo()
@@ -65,20 +65,28 @@ export async function extract(argv: ArgumentsCamelCase) {
     //TODO: Do we need to use different extractors?
     const extractor = await createObject(`../networks/${networkKey}/extractors/default.ts`)
     logger.info(`Applying extraction using filter "${filterKey}"`)
-    await processPaginated(filter, extractor, network)
+    const stats = new NumericStats()
+    try {
+        await processPaginated(filter, extractor, network, stats)
+        return { result: mapToObject(stats.getAll()) }
+    } catch (error) {
+        const partialResult = mapToObject(stats.getAll())
+        return { error, partialResult }
+    }
 }
 
-async function processPaginated(filter: Filter, extractor: ItemDataExtractor, network: Network) {
+async function processPaginated(filter: Filter, extractor: ItemDataExtractor, network: Network, stats: NumericStats): Promise<any> {
     let page = 0
     let hasElements = true
     let pageSize = network.configuration?.extractPageSize || 10
     while (hasElements) {
-        hasElements = await processPage(filter, extractor, network, page, pageSize)
+        hasElements = await processPage(filter, extractor, network, page, pageSize, stats)
         page++
     }
+    return mapToObject(stats.getAll())
 }
 
-async function processPage(filter: Filter, extractor: ItemDataExtractor, network: Network, page: number, pageSize: number): Promise<boolean> {
+async function processPage(filter: Filter, extractor: ItemDataExtractor, network: Network, page: number, pageSize: number, stats: NumericStats): Promise<boolean> {
 
     const { query, sort } = filter
     const skip = page * pageSize
@@ -89,13 +97,17 @@ async function processPage(filter: Filter, extractor: ItemDataExtractor, network
     for (const item of results) {
         const url = buildUrl(item, extractor, network)
         const { $, statusCode } = await getHtml(url)
+        stats.increase("processedItems")
         if (statusCode == 200) {
             try {
                 await processContent(item, extractor, $, network)
+                stats.increase("extractedItems")
             } catch (e) {
-                logger.error(`Error while processing item ${item.externalId}`, e)
+                logger.error(`Error while processing item ${item.externalId} -> ${url}`, e)
+                throw e
             }
         } else if (statusCode == 404) {
+            stats.increase("deletedItems")
             await markItemDeleted(item)
         } else {
             logger.warn(`Received a invalid response code ${statusCode}`)
@@ -120,7 +132,19 @@ function buildUrl(item: Item, extractor: any, newtwork: Network): string {
 }
 
 async function processContent(item: Item, extractor: ItemDataExtractor, parser: CheerioParser, network: Network) {
-    const { itemLinks = [], data, assets = [], skipSaveSnapshot = false } = await extractor.extract(parser, network)
+
+    const dir = createTempDir()
+    await parser.saveHtmlInDirectory(dir, "index.html")
+
+    let result
+    try {
+        result = await extractor.extract(parser, network)
+    } catch (e) {
+        logger.error(`Error extracting data for item -> html saved at ${dir}`)
+        throw e
+    }
+
+    const { itemLinks = [], data, skipSaveSnapshot = false } = result
     const currentDate = new Date()
     for (const itemLink of itemLinks) {
         await discover(itemLink)
@@ -132,6 +156,7 @@ async function processContent(item: Item, extractor: ItemDataExtractor, parser: 
         logger.info(`No changes detected on item ${item.externalId}`)
         return
     }
+    const assets = data.assets || []
     logger.debug(`${assets.length} assets detected in result`)
     const history = item.history || []
     if (item.data) {
@@ -139,13 +164,11 @@ async function processContent(item: Item, extractor: ItemDataExtractor, parser: 
     }
     logger.info(`Updating item ${item.externalId || item._id}`)
     await ItemModel.updateOne({ _id: item._id }, { $set: { data, lastUpdated: new Date(), history } })
-    const dir = createTempDir()
-    await parser.saveHtmlInDirectory(dir, "index.html")
 
     let idx = 1
-    for (const asset of assets) {
-        await downloadFile(asset, dir, `img_${idx++}${path.extname(asset)}`)
-    }
+    //for (const asset of assets) {
+    //    await downloadFile(asset, dir, `img_${idx++}${path.extname(asset)}`)
+    //}
     const zipped = await zipDir(dir)
     emptyAndDelete(dir)
     await moveToStorage(zipped, `${network.key}/history/${item._id}`)

@@ -1,9 +1,10 @@
 import log4js from 'log4js'
 import { discover } from './item-service'
-import { mapToObject } from '../util/common'
+import { ExecutionResult, mapToObject } from '../util/common'
 import { CacheEntry, NetworkExplorer, NetworkExplorerModel } from './models/explorer'
 import { connectMongo } from '../util/mongo'
 import { ArgumentsCamelCase } from 'yargs'
+import { NumericStats } from '../util/stats'
 
 const logger = log4js.getLogger("explore")
 
@@ -26,34 +27,6 @@ export class StatsKeys {
     static readonly DISCOVERED_ITEMS = "discoveredItems"
     static readonly NEW_ITEMS = "newItems"
     static readonly REPEAT_STRIKE = "repeatStrike"
-}
-
-export class NumericStats {
-    private stats = {}
-    increase(counter: string) {
-        let value = this.stats[counter] || 0
-        value++
-        this.stats[counter] = value
-    }
-    decrease(counter: string) {
-        let value = this.stats[counter] || 0
-        value--
-        this.stats[counter] = value
-    }
-    reset(counter: string) {
-        this.stats[counter] = 0
-    }
-
-    getValue(counter: string): number {
-        return this.stats[counter] || 0
-    }
-
-    getAll(): Map<string, number> {
-        return Object.keys(this.stats).reduce((p, c) => {
-            p.set(c, this.stats[c])
-            return p
-        }, new Map<string, number>())
-    }
 }
 
 class DefaultExploringContext implements ExploringContext {
@@ -154,7 +127,7 @@ async function createExplorer(networkKey: string, configuration: NetworkExplorer
     return new module.default()
 }
 
-export async function explore(argv: ArgumentsCamelCase): Promise<any> {
+export async function explore(argv: ArgumentsCamelCase): Promise<ExecutionResult> {
     const explorerPath: string = argv.explorer as string
     const [networkKey, explorerKey] = explorerPath.split(":")
     logger.info(`Creating explorer ${explorerKey} for network ${explorerPath}`)
@@ -167,19 +140,23 @@ export async function explore(argv: ArgumentsCamelCase): Promise<any> {
 
     logger.info(`Explorer configuration: ${JSON.stringify(configuration.configuration)}`)
     const context = new DefaultExploringContext(configuration);
+    try {
+        const explorer = await createExplorer(networkKey, configuration)
 
-    const explorer = await createExplorer(networkKey, configuration)
+        await NetworkExplorerModel.findByIdAndUpdate(configuration._id, { $set: { lastRun: { startedAt: new Date() } } })
+        logger.info(`Running explorer for network ${explorerPath}`)
 
-    await NetworkExplorerModel.findByIdAndUpdate(configuration._id, { $set: { lastRun: { startedAt: new Date() } } })
-    logger.info(`Running explorer for network ${explorerPath}`)
+        await explorer.explore(context);
+        logger.info(`Network explorer execution completed ${explorerPath}`)
 
-    await explorer.explore(context);
-    logger.info(`Network explorer execution completed ${explorerPath}`)
+        const stats = mapToObject(context.getStats())
+        const cache = mapToObject(context.getCache())
+        await NetworkExplorerModel.findByIdAndUpdate(configuration._id, { $set: { cache, "lastRun.endedAt": new Date() } })
 
-    const stats = mapToObject(context.getStats())
-    const cache = mapToObject(context.getCache())
-    await NetworkExplorerModel.findByIdAndUpdate(configuration._id, { $set: { cache, "lastRun.endedAt": new Date() } })
-
-    logger.info(`Execution numbers: ${JSON.stringify(stats)}`)
-    return stats
+        logger.info(`Execution numbers: ${JSON.stringify(stats)}`)
+        return { result: stats }
+    } catch (error) {
+        const partialResult = mapToObject(context.getStats())
+        return { error, partialResult }
+    }
 }
