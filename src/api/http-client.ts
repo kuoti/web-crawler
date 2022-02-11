@@ -63,14 +63,9 @@ export function createRequestConfig(options: RequestOptions = {}): AxiosRequestC
 export async function get(url: string, options: RequestOptions = {}): Promise<AxiosResponse> {
     const { skipProxy = false, userAgentType = 'mobile' } = options
     const requestConfig = createRequestConfig(options)
-    const deviceType = userAgentType
     if (!skipProxy) {
         const apiKey = getEnv().ROCKETSCRAPE_API_KEY
-        /*requestConfig.params = {
-            apiKey,
-            url
-        }*/
-        url = rocketscrapeUrl + `?apiKey=${apiKey}&url=${url}`
+        url = rocketscrapeUrl + `?apiKey=${apiKey}&keep_headers=true&url=${url}`
     }
     const response = await axios.get(url, requestConfig)
     return response
