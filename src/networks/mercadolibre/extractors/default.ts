@@ -1,4 +1,4 @@
-import { ExtractedContent, ExtractorContext, ItemDataExtractor } from "../../../api/extract";
+import { ExtrationResult, ExtractorContext, ItemDataExtractor } from "../../../api/extract";
 import { ItemData, ItemDisplay } from "../../../api/models/item";
 import { assertNotEquals, assertNotNull } from "../../../util/assert";
 import CheerioParser from "../../../util/html-parser";
@@ -35,11 +35,14 @@ function parseValue(key: string, value: any): any {
     return value
 }
 
-function extractData(json: any): ExtractedContent {
-    let { technical_specifications, description, gallery, price, header, content_left } = json.initialState?.components
+function extractData(json: any): ExtrationResult {
+    let { technical_specifications = {}, description, gallery, price, header, content_left } = json.initialState?.components
+    if (!technical_specifications) return { refetchContent: true }
 
-    const template = gallery.picture_config.template
-    const assets = gallery.pictures.map(p => getImageUrl(template, p))
+    //TODO: Extract prices and location!!!
+
+    const template = gallery?.picture_config?.template
+    const assets = template ? gallery.pictures.map(p => getImageUrl(template, p)) : []
     const image = assets.length > 0 ? assets[0] : undefined
     const display: ItemDisplay = {
         title: header?.title, description: description?.content, image
@@ -63,7 +66,13 @@ function extractData(json: any): ExtractedContent {
 
 export default class MercadolibreExtractor implements ItemDataExtractor {
     //TODO: Get all images, if they are same size and the size is 21090 it might be a test 
-    async extract($: CheerioParser, ctx: ExtractorContext): Promise<ExtractedContent> {
+    async extract($: CheerioParser, ctx: ExtractorContext): Promise<ExtrationResult> {
+
+        //Try to detect mobile content, if mobile content is returned, then no 
+        //technical_specifications are received
+        const mobile = $.findFirst(".andes-carousel-snapped__controls-wrapper")
+        if (mobile) return { refetchContent: true }
+
         const scripts = $.findAll("script")
         const script = scripts.find(s => s.html().indexOf("window.__PRELOADED_STATE__") >= 0)
         assertNotNull(script, "Unable to find data object script")

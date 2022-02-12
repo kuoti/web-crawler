@@ -16,10 +16,11 @@ import { NumericStats } from "../util/stats"
 
 const logger = log4js.getLogger("extract")
 
-export interface ExtractedContent {
-    data: ItemData
+export interface ExtrationResult {
+    data?: ItemData
     itemLinks?: string[]
     skipSaveSnapshot?: boolean
+    refetchContent?: boolean
 }
 
 export interface ExtractorContext {
@@ -39,7 +40,7 @@ class TemplateUrlBuilder implements UrlBuilder {
 }
 
 export interface ItemDataExtractor {
-    extract($: CheerioParser, ctx: ExtractorContext): Promise<ExtractedContent>
+    extract($: CheerioParser, ctx: ExtractorContext): Promise<ExtrationResult>
 }
 
 function validateFilterPath(filterPath: string): { networkKey, filterKey } {
@@ -95,24 +96,41 @@ async function processPage(filter: Filter, extractor: ItemDataExtractor, network
     if (results.length == 0) return false
 
     for (const item of results) {
-        const url = buildUrl(item, extractor, network)
-        const { $, statusCode } = await getHtml(url)
-        stats.increase("processedItems")
-        if (statusCode == 200) {
-            try {
-                await processContent(item, extractor, $, network)
-                stats.increase("extractedItems")
-            } catch (e) {
-                logger.error(`Error while processing item ${item.externalId} -> ${url}`, e)
-                throw e
+        let refetch = false
+        let fetchCount = 0
+        let maxFetchCount = 5
+        do {
+            refetch = false
+            const url = buildUrl(item, extractor, network)
+            const { $, statusCode } = await getHtml(url)
+            stats.increase("processedItems")
+            if (statusCode == 200) {
+                try {
+                    fetchCount++
+                    const result = await processContent(item, extractor, $, network)
+                    if (!result.refetchContent) {
+                        stats.increase("extractedItems")
+                        continue
+                    }
+                    if (fetchCount < maxFetchCount) {
+                        logger.warn(`Refetch request was received for url ${url}`)
+                        stats.increase("refetch")
+                        refetch = true
+                    } else {
+                        throw new Error("Max fetch count reached")
+                    }
+                } catch (e) {
+                    logger.error(`Error while processing item ${item.externalId} -> ${url}`, e)
+                    throw e
+                }
+            } else if (statusCode == 404) {
+                stats.increase("deletedItems")
+                await markItemDeleted(item)
+            } else {
+                logger.warn(`Received a invalid response code ${statusCode}`)
+                throw new Error(`Unhandled error code ${statusCode}`)
             }
-        } else if (statusCode == 404) {
-            stats.increase("deletedItems")
-            await markItemDeleted(item)
-        } else {
-            logger.warn(`Received a invalid response code ${statusCode}`)
-            throw new Error(`Unhandled error code ${statusCode}`)
-        }
+        } while (refetch)
     }
     return true
 }
@@ -131,14 +149,15 @@ function buildUrl(item: Item, extractor: any, newtwork: Network): string {
     return TemplateUrlBuilder.singleton.buildUrl(externalId, newtwork)
 }
 
-async function processContent(item: Item, extractor: ItemDataExtractor, parser: CheerioParser, network: Network) {
+async function processContent(item: Item, extractor: ItemDataExtractor, parser: CheerioParser, network: Network): Promise<ExtrationResult> {
 
     const dir = createTempDir()
     await parser.saveHtmlInDirectory(dir, "index.html")
 
-    let result
+    let result: ExtrationResult = undefined
     try {
         result = await extractor.extract(parser, network)
+        if (result.refetchContent) return result
     } catch (e) {
         logger.error(`Error extracting data for item -> html saved at ${dir}`)
         throw e
@@ -172,4 +191,5 @@ async function processContent(item: Item, extractor: ItemDataExtractor, parser: 
     const zipped = await zipDir(dir)
     emptyAndDelete(dir)
     await moveToStorage(zipped, `${network.key}/history/${item._id}`)
+    return result
 }
