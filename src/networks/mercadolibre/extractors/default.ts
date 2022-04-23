@@ -35,12 +35,28 @@ function parseValue(key: string, value: any): any {
     return value
 }
 
-function extractData(json: any): ExtrationResult {
-    let { technical_specifications = {}, description, gallery, price, header, content_left } = json.initialState?.components
+function extractData(json: any, ctx: ExtractorContext): ExtrationResult {
+    let { technical_specifications = {}, description, gallery, price, header, track } = json.initialState?.components
     if (!technical_specifications) return { refetchContent: true }
 
-    //TODO: Extract prices and location!!!
+    const eventData = track?.melidata_event?.event_data || {}
+    const location: any = {}
+    if(eventData){
+        const {item_condition, city, state } = eventData
+        location.city = city
+        location.state = state 
+    }else {
+        logger.warn(`Can't determine item location`)
+    }
 
+    const {currency_id: currency = 'COP', value: priceValue} = price?.price || {}
+    const prices = {}
+    if(!priceValue){
+        logger.warn(`Unable to determine price`)
+    }else{
+        prices['sale'] = { currency, value: priceValue}
+    }
+    
     const template = gallery?.picture_config?.template
     const assets = template ? gallery.pictures.map(p => getImageUrl(template, p)) : []
     const image = assets.length > 0 ? assets[0] : undefined
@@ -59,7 +75,7 @@ function extractData(json: any): ExtrationResult {
     })
     attributes.forEach(({ key, value }) => features[normalizeKey(key)] = value)
     const extra = {}
-    const data: ItemData = { display, features, extra, assets }
+    const data: ItemData = { display, features, extra, assets, prices, location }
     return { data }
 }
 
@@ -84,7 +100,7 @@ export default class MercadolibreExtractor implements ItemDataExtractor {
         assertNotEquals(endIndex, -1, "Can't find object end")
         html = html.substring(0, endIndex).trim()
         html = html.substring(0, html.length - 1)
-        return extractData(JSON.parse(html)) //No links available in detail
+        return extractData(JSON.parse(html), ctx) //No links available in detail
     }
 
 }

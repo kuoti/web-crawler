@@ -1,0 +1,7 @@
+
+
+use('crawler');
+
+db.getCollection("items").find({externalId: 'MCO-885482033'})
+
+

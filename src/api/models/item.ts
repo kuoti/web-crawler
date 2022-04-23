@@ -18,15 +18,15 @@ export interface ItemDisplay {
     title: string
     description?: string
     image?: string
-    featured?: any
-    location?: any
 }
 
 const ItemDataSchema = new mongoose.Schema({
     display: { type: ItemDisplaySchema, required: true },
     features: {},
     extra: {},
-    assets: [String]
+    assets: [String],
+    prices: {},
+    location: {}
 }, { _id: false, versionKey: false, minimize: false })
 
 export interface ItemData {
@@ -34,6 +34,8 @@ export interface ItemData {
     features: any
     extra: any
     assets: string[]
+    prices: any
+    location?: any
 }
 
 const ItemSchema = new mongoose.Schema({
@@ -45,6 +47,7 @@ const ItemSchema = new mongoose.Schema({
     lastUpdated: { type: Date },
     deletedAt: { type: Date },
     data: { type: ItemDataSchema },
+    rawData: {},
     lastCheckedAt: Date,
     state: { type: String, enum: ['created', 'fecthed', 'removed', 'error'], default: 'created' },
     history: [DataHistorySchema]

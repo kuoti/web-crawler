@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "ts-node ./src/cli.ts",
-    "explore": "ts-node ./src/cli.ts explore --explorer mercadolibre:today"
+    "meli-explore": "ts-node ./src/cli.ts explore --explorer mercadolibre:today",
+    "meli-extract": "ts-node ./src/cli.ts extract --filter mercadolibre:new"
   },
   "keywords": [],
   "author": "",
