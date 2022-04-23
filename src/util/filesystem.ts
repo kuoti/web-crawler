@@ -35,6 +35,7 @@ export async function writeFile(file: fs.PathOrFileDescriptor, data: string | No
 }
 
 export function emptyDir(dir: string) {
+    if(!fs.existsSync(dir)) return
     const files = fs.readdirSync(dir)
     for (let file of files) {
         file = path.join(dir, file)

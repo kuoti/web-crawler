@@ -13,7 +13,7 @@ let __env = undefined
 function getEnv() {
     if (__env) return __env
     __env = cleanEnv(process.env, {
-        ROCKETSCRAPE_API_KEY: str({ desc: "Rocketscrape api key", docs: "https://docs.rocketscrape.com/" })
+        ROCKETSCRAPE_API_KEY: str({ desc: "Rocketscrape api key", default: "", docs: "https://docs.rocketscrape.com/" })
     })
     return __env
 }
@@ -65,7 +65,11 @@ export async function get(url: string, options: RequestOptions = {}): Promise<Ax
     const requestConfig = createRequestConfig(options)
     if (!skipProxy) {
         const apiKey = getEnv().ROCKETSCRAPE_API_KEY
-        url = rocketscrapeUrl + `?apiKey=${apiKey}&keep_headers=true&url=${url}`
+        if(apiKey){            
+            url = rocketscrapeUrl + `?apiKey=${apiKey}&keep_headers=true&url=${url}`
+        }else{
+            logger.warn("No ROCKETSCRAPE api key provided, will not use this feature")
+        }
     }
     const response = await axios.get(url, requestConfig)
     return response

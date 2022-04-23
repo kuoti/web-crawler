@@ -13,6 +13,10 @@ export function createTempDir(): string {
     return fullDir
 }
 
+export function prepareDataDir(){
+    fs.mkdirSync(root, { recursive: true })
+}
+
 export function getTempDirPath(): string {
     return tmp
 }
