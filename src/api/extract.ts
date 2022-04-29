@@ -13,6 +13,7 @@ import { emptyAndDelete } from "../util/filesystem"
 import { Filter, FilterModel, parseFilter } from "./models/filter"
 import { ArgumentsCamelCase } from "yargs"
 import { NumericStats } from "../util/stats"
+import { cloneDeep } from "lodash"
 
 const logger = log4js.getLogger("extract")
 
@@ -137,6 +138,8 @@ async function processPage(filter: Filter, extractor: ItemDataExtractor, network
 
 async function markItemDeleted(item: Item) {
     logger.info(`Item was deleted ${item._id}`)
+    const cloned = cloneDeep(item)
+    await ItemModel.findByIdAndDelete({ _id: item._id })
     await ItemModel.findByIdAndUpdate(item._id, { state: 'deleted', deletedAt: new Date() })
 }
 

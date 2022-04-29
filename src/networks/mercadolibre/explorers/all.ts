@@ -8,7 +8,6 @@ import log4js from "log4js";
 const logger = log4js.getLogger("MercadolibreAllExplorer")
 const filtersBase = "https://frontend.mercadolibre.com/sites/MCO/homes/motors/filters"
 
-//TODO: Implement all network explorer
 async function getBrandIds(ctx: ExploringContext): Promise<number[]> {
     const cached = await ctx.getCached("brands", 24 * 7)
     if (cached) {
@@ -74,6 +73,7 @@ async function getModelUrl(brandId: number, model: number): Promise<string | und
 }
 
 
+//TODO: Need to implement an explorer that crawl the entire web page in order to detect dead links
 export default class MercadolibreAllExplorer implements Explorer {
     explore = async function (ctx: ExploringContext) {
         const { startedAt, endedAt, stateVars } = ctx.configuration?.lastRun || {}

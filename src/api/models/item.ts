@@ -55,7 +55,6 @@ const ItemSchema = new mongoose.Schema({
 
 export const ItemModel = mongoose.models.ItemSchema || mongoose.model('Item', ItemSchema, 'items')
 
-
 export interface DataHistory {
     date: Date
     changes: any
