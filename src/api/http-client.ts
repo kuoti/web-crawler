@@ -76,6 +76,7 @@ export async function get(url: string, options: RequestOptions = {}): Promise<Ax
 }
 
 export async function getHtml(url: string, options?: RequestOptions): Promise<HtmlGetResult> {
+    if (!url) throw new Error(`url must'n be empty`)
     try {
         const response = await get(url, options)
         //console.log("Response request: ", inspect(response.request))

@@ -5,13 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug Node",
             "type": "node",
             "request": "launch",
-            "name": "Launch Program",
-            "program": "${workspaceFolder}/dist/cli.js",
-            "args": ["explore", "tucarro"],
-            "preLaunchTask": "tsc: build - tsconfig.json",
-            "outFiles": ["${workspaceFolder}/build/**/*.js"]
+            "args": ["./src/cli.ts", "explore", "--explorer", "mercadolibre:all"],
+            "runtimeArgs": ["--nolazy", "-r", "ts-node/register"],
+            "sourceMaps": true,
+            "outputCapture": "std",
+            "cwd": "${workspaceRoot}",
+            "protocol": "inspector",
         }
     ]
 }

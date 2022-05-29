@@ -57,19 +57,7 @@ async function extractFilterIds(url: string, filterName: string): Promise<Array<
 }
 
 async function getModelUrl(brandId: number, model: number): Promise<string | undefined> {
-    try {
-        const requestConfig = createRequestConfig()
-        requestConfig.maxRedirects = 0
-        logger.info(`Getting url for brand ${brandId} - model ${model}`)
-        await postUrlEncoded("https://www.tucarro.com.co/vehiculos/search", {
-            category: 'MCO1744', BRAND: `${brandId}`, MODEL: `${model}`, price_from: '', price_to: '', years_from: '', years_to: ''
-        }, requestConfig)
-    } catch (error) {
-        if (error.response && error.response.status == 302) { //We expect a 302
-            return error.response.headers['location']
-        }
-        return undefined
-    }
+    return `https://vehiculos.mercadolibre.com.co/_BRAND_${brandId}_MODEL_${model}`
 }
 
 
