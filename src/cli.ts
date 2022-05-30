@@ -36,6 +36,9 @@ async function runPromiseAsync(method: (argv: ArgumentsCamelCase) => Promise<Exe
     executionResult.endedAt = new Date()
     executionResult.result = result
     await executionResult.save()
+    if (result.error) {
+        throw result.error
+    }
 }
 
 function runPromise(method: (argv: ArgumentsCamelCase) => Promise<any>, argv: ArgumentsCamelCase) {
