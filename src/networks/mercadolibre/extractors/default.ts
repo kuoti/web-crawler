@@ -96,10 +96,9 @@ export default class MercadolibreExtractor implements ItemDataExtractor {
         const startIndex = html.indexOf(startSubstring)
         assertNotEquals(startIndex, -1, "Can't find object start")
         html = html.substring(startIndex + startSubstring.length - 1)
-        const endIndex = html.indexOf("}},{s:function(){/* eslint-disable no-restricted-syntax */")
+        const endIndex = html.indexOf('"};')
         assertNotEquals(endIndex, -1, "Can't find object end")
-        html = html.substring(0, endIndex).trim()
-        html = html.substring(0, html.length - 1)
+        html = html.substring(0, endIndex + 2).trim()
         return extractData(JSON.parse(html), ctx) //No links available in detail
     }
 
