@@ -2,13 +2,12 @@ import { Explorer, ExploringContext } from "../../../api/explore";
 import { createRequestConfig, getJson, postUrlEncoded } from "../../../api/http-client";
 import { assertNotEmpty, assertNotNull } from "../../../util/assert";
 import { exploreResults } from "./common";
+import { get } from "../../../api/http-client"
 import log4js from "log4js";
 
-
 const logger = log4js.getLogger("MercadolibreAllExplorer")
-const filtersBase = "https://frontend.mercadolibre.com/sites/MCO/homes/motors/filters"
 
-async function getBrandIds(ctx: ExploringContext): Promise<number[]> {
+async function getBrandIds(ctx: ExploringContext): Promise<string[]> {
     const cached = await ctx.getCached("brands", 24 * 7)
     if (cached) {
         logger.info(`Getting brand ids from cache`)
@@ -20,7 +19,7 @@ async function getBrandIds(ctx: ExploringContext): Promise<number[]> {
     return brandIds
 }
 
-async function getModelIds(brandId: number, ctx: ExploringContext): Promise<number[]> {
+async function getModelIds(brandId: string, ctx: ExploringContext): Promise<string[]> {
     const key = `brand@${brandId}_models`
     const cached = await ctx.getCached(key, 24 * 7)
     if (cached) {
@@ -33,39 +32,44 @@ async function getModelIds(brandId: number, ctx: ExploringContext): Promise<numb
     return models
 }
 
-async function fetchModels(brandId: number): Promise<Array<number>> {
-    const modelsUrl = `${filtersBase}?nc=1356492860&&category=MCO1744&BRAND=${brandId}&os=web`
-    return extractFilterIds(modelsUrl, "MODEL")
+async function fetchModels(brandId: string): Promise<Array<string>> {
+    const url = `https://www.tucarro.com.co/faceted-search/MCO/MOT/searchbox/BRAND/MODEL?MODEL=&category=MCO1744&BRAND=${brandId}`
+    const response = await get(url);
+    return response.data.map(v => `${v.id}`)
 }
 
-async function fetchBrandsIds(ctx: ExploringContext): Promise<number[]> {
-    const brandsURL = `${filtersBase}?nc=5953417692&&category=MCO1744&os=web`
-    return extractFilterIds(brandsURL, "BRAND")
-}
-
-async function extractFilterIds(url: string, filterName: string): Promise<Array<number>> {
-    const { data, statusCode } = await getJson(url)
-    if (statusCode != 200) throw new Error(`Unable to get filters`)
-    const { available_filters } = data
-    assertNotNull(available_filters, "available filters")
-    const filter = available_filters.find(f => f.id == filterName) || []
-    if (!filter?.values || !filter?.values?.length) {
-        logger.warn(`Empty filter list ${filterName} for url ${url}`)
-        return []
+async function fetchBrandsIds(ctx: ExploringContext): Promise<string[]> {
+    const result = await get(`https://www.tucarro.com.co`)
+    let { data } = result
+    const checkIndex = i => {
+        if (i < 0) throw new Error(`Unable to extract make list`)
     }
-    return filter.values.map(m => m.id)
+    let start = data.indexOf("__PRELOADED_STATE__")
+    checkIndex(start)
+    data = data.substr(start)
+    start = data.indexOf("{")
+    checkIndex(start)
+    data = data.substr(start)
+    let end = data.indexOf("}};")
+    checkIndex(end)
+    data = data.substr(0, end + 2)
+    const parsed = JSON.parse(data)
+    const items = parsed?.dataLanding?.components || []
+    const brands = items.find(c => c.component_name == "VisFacetedSearch")
+    const list = (brands?.data?.renderConfig || []).find(r => r.id == "BRAND")?.options
+    if (!list) throw new Error("unable to extract make list")
+    return list.map(l => `${l.id}`)
 }
 
-async function getModelUrl(brandId: number, model: number): Promise<string | undefined> {
+async function getModelUrl(brandId: string, model: string): Promise<string | undefined> {
     return `https://vehiculos.mercadolibre.com.co/_BRAND_${brandId}_MODEL_${model}`
 }
-
 
 //TODO: Need to implement an explorer that crawl the entire web page in order to detect dead links
 export default class MercadolibreAllExplorer implements Explorer {
     explore = async function (ctx: ExploringContext) {
         const { startedAt, endedAt, stateVars } = ctx.configuration?.lastRun || {}
-        if (startedAt && !endedAt) {
+        if (startedAt && !endedAt && stateVars) {
             logger.warn(`Last run didn'end well, resuming from`, stateVars)
         }
         let brands = await getBrandIds(ctx)
