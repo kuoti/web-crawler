@@ -48,6 +48,7 @@ async function exploreResultsPage($: CheerioParser, url: string, ctx: ExploringC
         const file = createTempFilePath(".html")
         logger.warn(`No elements found in current page: ${url} -> ${file}`)
         await $.saveHtmlInFile(file)
+        return
     }
     logger.debug(`${elements.length} elements were found in ${url}`)
 
@@ -55,7 +56,7 @@ async function exploreResultsPage($: CheerioParser, url: string, ctx: ExploringC
         let externalId = extractExternalId(link)
         const url = externalId ? null : link //If external id, don't need a url
         if (!externalId) {
-            logger.warn(`Unnable to extract external id from url ${link}`)
+            logger.warn(`Unable to extract external id from url ${link}`)
         }
         await ctx.addItemLink(url, externalId)
     }
