@@ -72,23 +72,20 @@ export async function exploreResults(url: string, ctx: ExploringContext) {
     let attempts = 0
     do {
         const response = await getHtml(url, { userAgentType: 'mobile' })
-        if (response.statusCode != 200) {
-            logger.error(`Unable to get page at ${url}, result code: ${statusCode}`)
-            return
-        }
         attempts++
         statusCode = response.statusCode
         if (statusCode == 200) {
             stop = true
             $ = response.$
-        }
-        if (statusCode > 500) {
+        } else if (statusCode > 500) {
             await sleep(2);
             stop = attempts < 5
+        } else {
+            stop = true
         }
     } while (!stop)
     if (statusCode != 200) {
-        logger.error(`Unable to get page at ${url}, result code: ${statusCode}`)
+        logger.error(`Unable to get page at ${url}, status code: ${statusCode}`)
         return
     }
 
