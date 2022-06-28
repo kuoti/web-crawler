@@ -37,7 +37,8 @@ async function getModelIds(brandId: string, ctx: ExploringContext): Promise<stri
 
 async function fetchModels(brandId: string): Promise<Array<string>> {
     const url = `https://www.tucarro.com.co/faceted-search/MCO/MOT/searchbox/BRAND/MODEL?MODEL=&category=MCO1744&BRAND=${brandId}`
-    const response = await get(url);
+    logger.info(`Getting models for brand ${brandId}`)
+    const response = await get(url, { parseJson: true });
     return response.data.map(v => `${v.id}`)
 }
 
