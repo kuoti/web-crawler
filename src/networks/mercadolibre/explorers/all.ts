@@ -77,7 +77,6 @@ export default class MercadolibreAllExplorer implements Explorer {
             logger.warn(`Last run didn'end well, resuming from`, stateVars)
         }
         let brands = await getBrandIds(ctx)
-        const totalBrands = brands.length
         const { brand: startBrand, model: startModel } = stateVars || {}
         const index = brands.indexOf(startBrand)
         if (index > 0) {
@@ -102,7 +101,6 @@ export default class MercadolibreAllExplorer implements Explorer {
                 await ctx.saveStateVars({ brand, model })
                 await exploreResults(url, ctx)
             }
-            brandIndex++
         }
     }
 }
