@@ -10,7 +10,7 @@ const trackingIdPattern = /&?tracking_id=([0-9a-f]|-)+/
 const searchLayoutPattern = /&?search_layout=stack/
 const positionPattern = /#?&?position=[0-9]+/
 const typePattern = /#?&?type=item/
-const validUrlPattern = /^https?:\/\/carros.tucarro.com.co\/?.*/
+const validUrlPattern = /^https?:\/\/((carros\.tucarro)|(vehiculos\.mercadolibre))\.com\.co\/?.*/
 
 
 function normalizeUrl(url: string): string {
@@ -62,9 +62,31 @@ async function exploreResultsPage($: CheerioParser, url: string, ctx: ExploringC
     }
 }
 
+const sleep = (seconds) => new Promise((resolve, reject) => setTimeout(() => resolve(0), seconds * 1000))
+
 export async function exploreResults(url: string, ctx: ExploringContext) {
     logger.info(`Getting page at url ${url}`)
-    const { $, statusCode } = await getHtml(url, { userAgentType: 'mobile' })
+    let $ = undefined
+    let stop = false
+    let statusCode = 0
+    let attempts = 0
+    do {
+        const response = await getHtml(url, { userAgentType: 'mobile' })
+        if (response.statusCode != 200) {
+            logger.error(`Unable to get page at ${url}, result code: ${statusCode}`)
+            return
+        }
+        attempts++
+        statusCode = response.statusCode
+        if (statusCode == 200) {
+            stop = true
+            $ = response.$
+        }
+        if (statusCode > 500) {
+            await sleep(2);
+            stop = attempts < 5
+        }
+    } while (!stop)
     if (statusCode != 200) {
         logger.error(`Unable to get page at ${url}, result code: ${statusCode}`)
         return
