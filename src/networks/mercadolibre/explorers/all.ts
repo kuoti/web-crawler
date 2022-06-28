@@ -27,8 +27,11 @@ async function getModelIds(brandId: string, ctx: ExploringContext): Promise<stri
         return cached
     }
     logger.info(`Fetching brand model keys for ${brandId}`)
+    console.log(1)
     const models = (await fetchModels(brandId)).sort()
+    console.log(2)
     await ctx.cacheValue(key, models)
+    console.log(3)
     return models
 }
 
