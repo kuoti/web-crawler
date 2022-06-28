@@ -71,7 +71,9 @@ export async function get(url: string, options: RequestOptions = {}): Promise<Ax
             logger.warn("No ROCKETSCRAPE api key provided, will not use this feature")
         }
     }
+    console.log("Before get")
     const response = await axios.get(url, requestConfig)
+    console.log("after get")
     return response
 }
 
