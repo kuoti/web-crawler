@@ -51,12 +51,21 @@ const desktopUserAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.3
 export function createRequestConfig(url: string, options: RequestOptions = {}): AxiosRequestConfig {
     const { skipProxy = false, userAgentType = 'mobile', parseJson = false } = options
     const userAgent = skipProxy ? userAgentType == 'mobile' ? mobileUserAgent : desktopUserAgent : desktopUserAgent
+    const loggedPartSize = 100;
     const config: AxiosRequestConfig = {
         headers: {
             'accept-language': 'es-US,es-419;q=0.9,es;q=0.8',
             'User-Agent': userAgent
         }, transformResponse: (data: any) => {
-            if (parseJson) return JSON.parse(data)
+            if (parseJson) {
+                try {
+                    return JSON.parse(data)
+                } catch (ex) {
+                    const snippet = data && data.length > loggedPartSize ? data.substr(0, loggedPartSize) : data;
+                    logger.error(`Error parsing JSON: ${snippet}`)
+                    throw ex
+                }
+            }
             return data
         }
     }
@@ -69,9 +78,9 @@ export async function get(url: string, options: RequestOptions = {}): Promise<Ax
     const requestConfig = createRequestConfig(url, options)
     if (!skipProxy) {
         const apiKey = getEnv().ROCKETSCRAPE_API_KEY
-        if(apiKey){            
+        if (apiKey) {
             url = rocketscrapeUrl + `?apiKey=${apiKey}&keep_headers=true&url=${url}`
-        }else{
+        } else {
             logger.warn("No ROCKETSCRAPE api key provided, will not use this feature")
         }
     }
