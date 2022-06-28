@@ -83,7 +83,9 @@ class DefaultExploringContext implements ExploringContext {
         const expires = 1000 * 60 * 60 * expiresinHours
         const entry: CacheEntry = { value, lastHit: Date.now(), cachedAt: Date.now() }
         this.configuration.cache.set(key, entry)
+        logger.info("Saving cache values");
         await NetworkExplorerModel.findByIdAndUpdate(this.configuration._id, { $set: { cache: this.configuration.cache } })
+        logger.info("Cache saved");
     }
 
     async addItemLink(url: string, externalId?: string): Promise<boolean> {
