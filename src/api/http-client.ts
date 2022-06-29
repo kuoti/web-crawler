@@ -57,15 +57,6 @@ export function createRequestConfig(url: string, options: RequestOptions = {}): 
             'accept-language': 'es-US,es-419;q=0.9,es;q=0.8',
             'User-Agent': userAgent
         }, transformResponse: (data: any) => {
-            if (parseJson) {
-                try {
-                    return JSON.parse(data)
-                } catch (ex) {
-                    const snippet = data && data.length > loggedPartSize ? data.substr(0, loggedPartSize) : data;
-                    logger.error(`Error parsing JSON: ${snippet}`)
-                    throw ex
-                }
-            }
             return data
         }
     }
@@ -85,9 +76,18 @@ export async function get(url: string, options: RequestOptions = {}): Promise<Ax
         }
     }
     logger.debug(`Getting url ${url}`)
-    console.log("Before get")
+    const loggedPartSize = 100;
     const response = await axios.get(url, requestConfig)
-    console.log("after get")
+    if (response.status == 200 && parseJson) {
+        const { data } = response
+        try {
+            return response.data = JSON.parse(data)
+        } catch (ex) {
+            const snippet = data && data.length > loggedPartSize ? data.substr(0, loggedPartSize) : data;
+            logger.error(`Error parsing JSON: ${snippet}`)
+            throw ex
+        }
+    }
     return response
 }
 
