@@ -9,6 +9,10 @@ export async function createObject(importPath: string): Promise<any> {
     return new module.default()
 }
 
+export async function sleep(ms: number): Promise<void> {
+    return new Promise((resolve, reject) => setTimeout(() => resolve(), ms))
+}
+
 export function sha256(value: string): string {
     return crypto.createHash('sha256').update(value).digest('hex');
 }

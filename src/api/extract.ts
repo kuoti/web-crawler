@@ -4,7 +4,7 @@ import { Network, NetworkModel } from "./models/network"
 import { downloadFile, get, getHtml } from "./http-client"
 import diff from 'deep-diff'
 import { discover } from "./item-service"
-import { clone, createObject, ExecutionResult, mapToObject } from "../util/common"
+import { clone, createObject, ExecutionResult, mapToObject, sleep } from "../util/common"
 import log4js from "log4js"
 import { connectMongo } from "../util/mongo"
 import { createTempDir, moveToStorage, zipDir } from './storage'
@@ -100,14 +100,15 @@ async function processPage(filter: Filter, extractor: ItemDataExtractor, network
         let refetch = false
         let fetchCount = 0
         let maxFetchCount = 5
+
         do {
             refetch = false
             const url = buildUrl(item, extractor, network)
             const { $, statusCode } = await getHtml(url)
+            fetchCount++
             stats.increase("processedItems")
             if (statusCode == 200) {
                 try {
-                    fetchCount++
                     const result = await processContent(item, extractor, $, network)
                     if (!result.refetchContent) {
                         stats.increase("extractedItems")
@@ -127,6 +128,12 @@ async function processPage(filter: Filter, extractor: ItemDataExtractor, network
             } else if (statusCode == 404) {
                 stats.increase("deletedItems")
                 await markItemDeleted(item)
+            } else if (statusCode == 502) {
+                refetch = fetchCount < maxFetchCount
+                if (refetch)
+                    await sleep(1000);
+                else
+                    logger.warn(`Unable to process element ${item.externalId} -> ${url}`)
             } else {
                 logger.warn(`Received a invalid response code ${statusCode}`)
                 throw new Error(`Unhandled error code ${statusCode}`)
