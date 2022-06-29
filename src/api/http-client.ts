@@ -35,7 +35,6 @@ export interface HtmlJsonResponse {
 export interface RequestOptions {
     userAgentType?: 'mobile' | 'desktop'
     skipProxy?: boolean
-    parseJson?: boolean
 }
 
 axios.interceptors.request.use(request => {
@@ -49,7 +48,7 @@ const mobileUserAgent = "Mozilla/5.0 (Linux; Android 6.0.1; Moto G (4)) AppleWeb
 const desktopUserAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36"
 
 export function createRequestConfig(url: string, options: RequestOptions = {}): AxiosRequestConfig {
-    const { skipProxy = false, userAgentType = 'mobile', parseJson = false } = options
+    const { skipProxy = false, userAgentType = 'mobile' } = options
     const userAgent = skipProxy ? userAgentType == 'mobile' ? mobileUserAgent : desktopUserAgent : desktopUserAgent
     const loggedPartSize = 100;
     const config: AxiosRequestConfig = {
@@ -65,7 +64,7 @@ export function createRequestConfig(url: string, options: RequestOptions = {}): 
 
 
 export async function get(url: string, options: RequestOptions = {}): Promise<AxiosResponse> {
-    const { skipProxy = false, userAgentType = 'mobile', parseJson = false } = options
+    const { skipProxy = false, userAgentType = 'mobile' } = options
     const requestConfig = createRequestConfig(url, options)
     if (!skipProxy) {
         const apiKey = getEnv().ROCKETSCRAPE_API_KEY
@@ -76,25 +75,14 @@ export async function get(url: string, options: RequestOptions = {}): Promise<Ax
         }
     }
     logger.debug(`Getting url ${url}`)
-    const loggedPartSize = 100;
     const response = await axios.get(url, requestConfig)
-    if (response.status == 200 && parseJson) {
-        const { data } = response
-        try {
-            return response.data = JSON.parse(data)
-        } catch (ex) {
-            const snippet = data && data.length > loggedPartSize ? data.substr(0, loggedPartSize) : data;
-            logger.error(`Error parsing JSON: ${snippet}`)
-            throw ex
-        }
-    }
     return response
 }
 
 export async function getHtml(url: string, options?: RequestOptions): Promise<HtmlGetResult> {
     if (!url) throw new Error(`url must'n be empty`)
     try {
-        const response = await get(url, { ...options, parseJson: false })
+        const response = await get(url, { ...options })
         //console.log("Response request: ", inspect(response.request))
         const statusCode = response.status
         if (statusCode != 200) return { statusCode, response }
@@ -112,11 +100,18 @@ export async function getHtml(url: string, options?: RequestOptions): Promise<Ht
 }
 
 export async function getJson(url: string, profile?: string): Promise<HtmlJsonResponse> {
-    const response = await get(url, { parseJson: true })
+    const response = await get(url, { skipProxy: true })
     const statusCode = response.status
     if (statusCode != 200) return { response, statusCode }
     logger.debug(`Loading and parsing json response`)
-    const data = response.data
+    let data = undefined
+    try {
+        data = JSON.parse(response.data)
+    } catch (e) {
+        const logged = response.data && response.data.length > 100 ? response.data.substr(0, 100) : response.data
+        logger.error(`Error parsing json: ${logged}`)
+        throw e
+    }
     return { response, data, statusCode }
 }
 
