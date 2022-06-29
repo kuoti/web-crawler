@@ -84,7 +84,7 @@ export default class MercadolibreAllExplorer implements Explorer {
 
         let currentIndex = 0
         for (const brand of brands) {
-            logger.info(`Processing brand ${currentIndex++} of ${brand.length}`)
+            logger.info(`Processing brand ${currentIndex++} of ${brands.length}`)
             let models = await getModelIds(brand, ctx)
             if (brand == startBrand) {
                 const startIndex = models.indexOf(startModel)
