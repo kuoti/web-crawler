@@ -64,7 +64,7 @@ function extractData(json: any, ctx: ExtractorContext): ExtractionResult {
         title: header?.title, description: description?.content, image
     }
     const features = {}
-    const { specs } = technical_specifications
+    const { specs = [] } = technical_specifications
     const attributes = specs.flatMap(s => s.attributes).map(a => {
         if (a.id && a.text) return a
         if (a.values) return { id: a?.values?.value_text?.text, text: true }
