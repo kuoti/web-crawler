@@ -1,4 +1,4 @@
-import { ExtrationResult, ExtractorContext, ItemDataExtractor } from "../../../api/extract";
+import { ExtractionResult, ExtractorContext, ItemDataExtractor } from "../../../api/extract";
 import { ItemData, ItemDisplay } from "../../../api/models/item";
 import { assertNotEquals, assertNotNull } from "../../../util/assert";
 import CheerioParser from "../../../util/html-parser";
@@ -35,7 +35,7 @@ function parseValue(key: string, value: any): any {
     return value
 }
 
-function extractData(json: any, ctx: ExtractorContext): ExtrationResult {
+function extractData(json: any, ctx: ExtractorContext): ExtractionResult {
     let { technical_specifications = {}, description, gallery, price, header, track } = json.initialState?.components
     if (!technical_specifications) return { refetchContent: true }
 
@@ -82,7 +82,7 @@ function extractData(json: any, ctx: ExtractorContext): ExtrationResult {
 
 export default class MercadolibreExtractor implements ItemDataExtractor {
     //TODO: Get all images, if they are same size and the size is 21090 it might be a test 
-    async extract($: CheerioParser, ctx: ExtractorContext): Promise<ExtrationResult> {
+    async extract($: CheerioParser, ctx: ExtractorContext): Promise<ExtractionResult> {
 
         //Try to detect mobile content, if mobile content is returned, then no 
         //technical_specifications are received
@@ -91,14 +91,14 @@ export default class MercadolibreExtractor implements ItemDataExtractor {
 
         const scripts = $.findAll("script")
         const script = scripts.find(s => s.html().indexOf("window.__PRELOADED_STATE__") >= 0)
-        assertNotNull(script, "Unable to find data object script")
+        if (!script) return { error: "Unable to find data object script" }
         let html = script.html()
         const startIndex = html.indexOf(startSubstring)
-        assertNotEquals(startIndex, -1, "Can't find object start")
+        if (startIndex == -1) return { error: "Can't find object start" }
         html = html.substring(startIndex + startSubstring.length - 1)
         const endIndex = html.indexOf('}}};')
         //TODO task should fails if assert fails
-        assertNotEquals(endIndex, -1, "Can't find object end")
+        if (endIndex == -1) return { error: "Can't find object end" }
         html = html.substring(0, endIndex + 3).trim()
         return extractData(JSON.parse(html), ctx) //No links available in detail
     }

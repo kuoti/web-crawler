@@ -17,8 +17,9 @@ import { cloneDeep } from "lodash"
 
 const logger = log4js.getLogger("extract")
 
-export interface ExtrationResult {
+export interface ExtractionResult {
     data?: ItemData
+    error?: string
     itemLinks?: string[]
     skipSaveSnapshot?: boolean
     refetchContent?: boolean
@@ -41,7 +42,7 @@ class TemplateUrlBuilder implements UrlBuilder {
 }
 
 export interface ItemDataExtractor {
-    extract($: CheerioParser, ctx: ExtractorContext): Promise<ExtrationResult>
+    extract($: CheerioParser, ctx: ExtractorContext): Promise<ExtractionResult>
 }
 
 function validateFilterPath(filterPath: string): { networkKey, filterKey } {
@@ -159,12 +160,12 @@ function buildUrl(item: Item, extractor: any, newtwork: Network): string {
     return TemplateUrlBuilder.singleton.buildUrl(externalId, newtwork)
 }
 
-async function processContent(item: Item, extractor: ItemDataExtractor, parser: CheerioParser, network: Network): Promise<ExtrationResult> {
+async function processContent(item: Item, extractor: ItemDataExtractor, parser: CheerioParser, network: Network): Promise<ExtractionResult> {
 
     const dir = createTempDir()
     await parser.saveHtmlInDirectory(dir, "index.html")
 
-    let result: ExtrationResult = undefined
+    let result: ExtractionResult = undefined
     try {
         result = await extractor.extract(parser, network)
         if (result.refetchContent) return result
@@ -173,6 +174,11 @@ async function processContent(item: Item, extractor: ItemDataExtractor, parser: 
         throw e
     }
 
+    if (result.error) {
+        logger.warn(`Unable to extract content: ${result.error}`)
+        await ItemModel.updateOne({ _id: item._id }, { "$set": { state: 'error', error: result.error } })
+        return result
+    }
     const { itemLinks = [], data, skipSaveSnapshot = false } = result
     const currentDate = new Date()
     for (const itemLink of itemLinks) {
@@ -192,7 +198,7 @@ async function processContent(item: Item, extractor: ItemDataExtractor, parser: 
         history.push({ date: currentDate, changes })
     }
     logger.info(`Updating item ${item.externalId || item._id}`)
-    await ItemModel.updateOne({ _id: item._id }, { $set: { data, lastUpdated: new Date(), history } })
+    await ItemModel.updateOne({ _id: item._id }, { $set: { data, lastUpdated: new Date(), history, state: 'fetched', error: null } })
 
     let idx = 1
     //for (const asset of assets) {

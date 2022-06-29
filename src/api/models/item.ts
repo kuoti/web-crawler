@@ -49,7 +49,8 @@ const ItemSchema = new mongoose.Schema({
     data: { type: ItemDataSchema },
     rawData: {},
     lastCheckedAt: Date,
-    state: { type: String, enum: ['created', 'fecthed', 'removed', 'error'], default: 'created' },
+    state: { type: String, enum: ['created', 'fetched', 'removed', 'error'], default: 'created' },
+    error: String,
     history: [DataHistorySchema]
 })
 
