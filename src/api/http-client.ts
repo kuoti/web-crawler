@@ -35,6 +35,7 @@ export interface HtmlJsonResponse {
 export interface RequestOptions {
     userAgentType?: 'mobile' | 'desktop'
     skipProxy?: boolean
+    retryCount?: number
 }
 
 axios.interceptors.request.use(request => {
@@ -55,16 +56,14 @@ export function createRequestConfig(url: string, options: RequestOptions = {}): 
         headers: {
             'accept-language': 'es-US,es-419;q=0.9,es;q=0.8',
             'User-Agent': userAgent
-        }, transformResponse: (data: any) => {
-            return data
-        }
+        }, transformResponse: (data: any) => `${data}`
     }
     return config
 }
 
 
 export async function get(url: string, options: RequestOptions = {}): Promise<AxiosResponse> {
-    const { skipProxy = false, userAgentType = 'mobile' } = options
+    const { skipProxy = false, userAgentType = 'mobile', retryCount = 3 } = options
     const requestConfig = createRequestConfig(url, options)
     if (!skipProxy) {
         const apiKey = getEnv().ROCKETSCRAPE_API_KEY
@@ -74,8 +73,21 @@ export async function get(url: string, options: RequestOptions = {}): Promise<Ax
             logger.warn("No ROCKETSCRAPE api key provided, will not use this feature")
         }
     }
-    logger.debug(`Getting url ${url}`)
-    const response = await axios.get(url, requestConfig)
+    logger.info(`Getting url ${url}`)
+    let response = undefined
+    let retry = false
+    let currentAttempt = 0
+    do {
+        currentAttempt++
+        response = await axios.get(url, requestConfig)
+        const { status } = response
+        if (status > 500) {
+            logger.warn(`Error getting content [Status: ${status}], retrying. Attempt [${currentAttempt} of ${retryCount}]`)
+            retry = currentAttempt < retryCount
+        } else {
+            retry = false
+        }
+    } while (retry)
     return response
 }
 
@@ -105,10 +117,11 @@ export async function getJson(url: string, profile?: string): Promise<HtmlJsonRe
     if (statusCode != 200) return { response, statusCode }
     logger.debug(`Loading and parsing json response`)
     let data = undefined
+    const logSize = 200
     try {
         data = JSON.parse(response.data)
     } catch (e) {
-        const logged = response.data && response.data.length > 100 ? response.data.substr(0, 100) : response.data
+        const logged = response.data && response.data.length > logSize ? response.data.substr(0, logSize) : response.data
         logger.error(`Error parsing json: ${logged}`)
         throw e
     }

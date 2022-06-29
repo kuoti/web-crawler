@@ -8,7 +8,7 @@ import log4js from "log4js";
 const logger = log4js.getLogger("MercadolibreAllExplorer")
 
 async function getBrandIds(ctx: ExploringContext): Promise<string[]> {
-    const cached = await ctx.getCached("brands", 24 * 7)
+    const cached = await ctx.getCached("brandIds", 24 * 7)
     if (cached) {
         logger.info(`Getting brand ids from cache`)
         return cached
