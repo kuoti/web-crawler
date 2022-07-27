@@ -129,7 +129,7 @@ async function processPage(filter: Filter, extractor: ItemDataExtractor, network
             } else if (statusCode == 404) {
                 stats.increase("deletedItems")
                 await markItemDeleted(item)
-            } else if (statusCode >= 502) {
+            } else if (statusCode == 502 || statusCode == 500) {
                 refetch = fetchCount < maxFetchCount
                 if (refetch)
                     await sleep(1000);
